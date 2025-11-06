@@ -1,65 +1,77 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { NumberInput } from 'intl-number-input'
+  import type { NumberInputOptions, NumberInputValue } from 'intl-number-input'
 
-  export let value: number | string = '' // The bound value
-  export let format: string = '' // Custom format, e.g., "#,###.##"
-  export let mask: string = '' // Optional mask, e.g., "(###) ###-####"
-  export let decimalSeparator: string = '.' // Decimal separator
-  export let thousandSeparator: string = ',' // Thousand separator
-  export let onInput: (
-    formattedValue: string,
-    rawValue: string
-  ) => void = () => {}
+  interface Props {
+    value?: number | null
+    locale?: string
+    options?: Partial<NumberInputOptions>
+    onInput?: (raw: number | null, formatted: string | null) => void
+    onChange?: (raw: number | null, formatted: string | null) => void
+    // Pass through any HTML input attributes
+    [key: string]: any
+  }
 
-  let inputElement: HTMLInputElement
+  let {
+    value = $bindable(null),
+    locale = navigator.language,
+    options = {},
+    onInput = () => {},
+    onChange,
+    ...restProps
+  }: Props = $props()
 
-  // Format the input value based on the given format/mask
-  const formatValue = (rawValue: string): string => {
-    if (mask) {
-      // Apply mask logic
-      let masked = ''
-      let maskIndex = 0
-      for (let i = 0; i < rawValue.length && maskIndex < mask.length; i++) {
-        if (mask[maskIndex] === '#') {
-          masked += rawValue[i]
-          maskIndex++
-        } else {
-          masked += mask[maskIndex]
-          maskIndex++
-          i-- // Retry this character with the next mask segment
-        }
+  let inputEl: HTMLInputElement | null = $state(null)
+  let controller: NumberInput | null = $state(null)
+  let internalValue = $state<number | null>(null)
+
+  // Initialize and reinitialize the controller when input, locale, or options change
+  $effect(() => {
+    if (!inputEl) return
+
+    // Destroy previous controller if it exists
+    controller?.destroy?.()
+
+    const c = new NumberInput({
+      el: inputEl,
+      options: {
+        locale,
+        ...options
+      },
+      onInput: (val: NumberInputValue) => {
+        internalValue = val.number
+        value = val.number
+        onInput(val.number, val.formatted)
+      },
+      onChange: onChange
+        ? (val: NumberInputValue) => {
+            onChange(val.number, val.formatted)
+          }
+        : undefined
+    })
+
+    controller = c
+
+    // Use queueMicrotask to ensure controller is fully initialized
+    queueMicrotask(() => {
+      if (value !== null && value !== undefined) {
+        c.setValue(value)
+        internalValue = value
       }
-      return masked
+    })
+
+    return () => {
+      c.destroy()
     }
+  })
 
-    // Format number according to separators
-    if (format) {
-      const [integerPart, fractionalPart] = rawValue.split(decimalSeparator)
-      const formattedInt = integerPart.replace(
-        /\B(?=(\d{3})+(?!\d))/g,
-        thousandSeparator
-      )
-      return fractionalPart
-        ? `${formattedInt}${decimalSeparator}${fractionalPart}`
-        : formattedInt
+  // Sync external value changes to the controller
+  $effect(() => {
+    if (controller && value !== internalValue) {
+      controller.setValue(value)
+      internalValue = value
     }
-
-    return rawValue
-  }
-
-  const handleInput = (event: Event) => {
-    const rawValue = (event.target as HTMLInputElement).value.replace(
-      /[^0-9.]/g,
-      ''
-    )
-    const formattedValue = formatValue(rawValue)
-    onInput(formattedValue, rawValue)
-    inputElement.value = formattedValue
-  }
-
-  onMount(() => {
-    inputElement.value = formatValue(value.toString())
   })
 </script>
 
-<input bind:this={inputElement} on:input={handleInput} />
+<input bind:this={inputEl} {...restProps} />
