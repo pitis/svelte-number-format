@@ -1,8 +1,6 @@
 import adapter from '@sveltejs/adapter-auto'
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
 
-const dev = process.env.NODE_ENV === 'development'
-
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
@@ -17,7 +15,7 @@ const config = {
       fallback: null
     }),
     paths: {
-      base: dev ? '' : '/svelte-number-format' // REPO_NAME = your GitHub repo name
+      base: process.env.GITHUB_ACTIONS ? '/svelte-number-format' : ''
     }
   }
 }
