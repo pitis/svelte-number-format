@@ -13,7 +13,7 @@
 
   let {
     value = $bindable(null),
-    locale = navigator.language ?? 'en-US',
+    locale = navigator.language,
     options = {},
     onInput = () => {},
     onChange = () => {},
