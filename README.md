@@ -3,31 +3,34 @@
 **Svelte Number Format** is a lightweight and reactive number input component for [Svelte 5](https://svelte.dev).  
 It’s built on top of [intl-number-input](https://www.npmjs.com/package/intl-number-input), bringing locale-aware formatting, currency, percent, and advanced numeric input control — with full caret stability and two-way binding.
 
-## Usage
+## Live Demo
+
+Check out a working demo here: [https://pitis.github.io/svelte-number-format/](https://pitis.github.io/svelte-number-format/)
+
+## Installation
 
 Install with npm or yarn:
 
 ```bash
-npm install --save svelte-number-format
+npm install svelte-number-format
 ```
 
 ## Props
 
-| **Prop**            | **Type**                                   | **Description**                                                       |
-| ------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| `value`             | `string \| number`                         | Initial value to display.                                             |
-| `format`            | `string`                                   | Custom number format (e.g., `#,###.##`).                              |
-| `mask`              | `string`                                   | Input mask (e.g., `"(###) ###-####"`).                                |
-| `decimalSeparator`  | `string`                                   | Character for the decimal separator (default: `.`).                   |
-| `thousandSeparator` | `string`                                   | Character for the thousand separator (default: `,`).                  |
-| `onInput`           | `(formatted: string, raw: string) => void` | Callback function invoked with the formatted and raw values on input. |
+| Prop                          | Type                                                       | Description                                                                                                                     |
+| ----------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `value`                       | `number \| null`                                           | The numeric value of the input. Can be bound using `bind:value`.                                                                |
+| `locale`                      | `string`                                                   | Locale string for formatting (default: `navigator.language`).                                                                   |
+| `options`                     | `Partial<NumberInputOptions>`                              | Options passed to `intl-number-input`. Includes `precision`, `formatStyle`, `currency`, `valueRange`, `autoDecimalDigits`, etc. |
+| `onInput`                     | `(raw: number \| null, formatted: string \| null) => void` | Callback triggered on every keystroke.                                                                                          |
+| `onChange`                    | `(raw: number \| null, formatted: string \| null) => void` | Callback triggered on blur or when the input value changes.                                                                     |
+| `[key: string]` / `restProps` | `any`                                                      | Any additional HTML `<input>` attributes (e.g., `placeholder`, `class`, `id`).                                                  |
 
-## Example
+## Usage
 
 ```js
 <script lang="ts">
-	import SvelteNumberFormat from 'svelte-number-format'
-	import { NumberFormatStyle } from 'intl-number-input'
+	import { SvelteNumberFormat, NumberFormatStyle } from 'svelte-number-format';
 
 	let amount = $state<number | null>(1234.56)
 </script>

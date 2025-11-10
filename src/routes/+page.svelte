@@ -1,6 +1,5 @@
 <script lang="ts">
-  import NumberInput from '../lib/SvelteNumberFormat.svelte'
-  import { NumberFormatStyle } from 'intl-number-input'
+  import { SvelteNumberFormat, NumberFormatStyle } from '../lib/index.js'
 
   // Separate state for each demo to avoid cross-interference
   let amountBasic = $state<number | null>(1234.56)
@@ -26,7 +25,7 @@
 
   <div class="example">
     <h2>Basic Number Input</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={amountBasic}
       options={{ precision: 2 }}
       placeholder="Enter amount"
@@ -37,7 +36,7 @@
 
   <div class="example">
     <h2>Currency (USD)</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={priceCurrency}
       locale="en-US"
       options={{
@@ -53,7 +52,7 @@
 
   <div class="example">
     <h2>Percentage</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={percentage}
       locale="en-US"
       options={{
@@ -69,7 +68,7 @@
 
   <div class="example">
     <h2>European Format (EUR)</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={euroAmount}
       locale="de-DE"
       options={{
@@ -85,7 +84,7 @@
 
   <div class="example">
     <h2>With Callbacks</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={amountWithCallbacks}
       options={{ precision: 2 }}
       onInput={handleInput}
@@ -100,7 +99,7 @@
 
   <div class="example">
     <h2>Controlled Example</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={amountControlled}
       options={{ precision: 2 }}
       class="input"
@@ -114,7 +113,7 @@
 
   <div class="example">
     <h2>With Value Range</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={amountWithRange}
       options={{
         precision: 2,
@@ -129,7 +128,7 @@
 
   <div class="example">
     <h2>Auto Decimal Mode</h2>
-    <NumberInput
+    <SvelteNumberFormat
       bind:value={priceAutoDecimal}
       options={{
         precision: 2,
