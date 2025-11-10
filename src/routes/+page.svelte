@@ -1,18 +1,16 @@
 <script lang="ts">
-  import NumberInput from '../lib/NumberFormat.svelte'
+  import NumberInput from '../lib/SvelteNumberFormat.svelte'
   import { NumberFormatStyle } from 'intl-number-input'
 
-  // Basic usage with bindable value
-  let amount = $state<number | null>(1234.56)
-
-  // Currency example
-  let price = $state<number | null>(99.99)
-
-  // Percentage example
+  // Separate state for each demo to avoid cross-interference
+  let amountBasic = $state<number | null>(1234.56)
+  let priceCurrency = $state<number | null>(99.99)
   let percentage = $state<number | null>(0.75)
-
-  // Custom locale example
   let euroAmount = $state<number | null>(1234.56)
+  let amountWithCallbacks = $state<number | null>(1234.56)
+  let amountControlled = $state<number | null>(1234.56)
+  let amountWithRange = $state<number | null>(500)
+  let priceAutoDecimal = $state<number | null>(99.99)
 
   function handleInput(raw: number | null, formatted: string | null) {
     console.log('Input - Raw value:', raw, 'Formatted:', formatted)
@@ -29,18 +27,18 @@
   <div class="example">
     <h2>Basic Number Input</h2>
     <NumberInput
-      bind:value={amount}
+      bind:value={amountBasic}
       options={{ precision: 2 }}
       placeholder="Enter amount"
       class="input"
     />
-    <p>Value: {amount}</p>
+    <p>Value: {amountBasic}</p>
   </div>
 
   <div class="example">
     <h2>Currency (USD)</h2>
     <NumberInput
-      bind:value={price}
+      bind:value={priceCurrency}
       locale="en-US"
       options={{
         formatStyle: NumberFormatStyle.Currency,
@@ -50,7 +48,7 @@
       placeholder="$0.00"
       class="input"
     />
-    <p>Value: {price}</p>
+    <p>Value: {priceCurrency}</p>
   </div>
 
   <div class="example">
@@ -88,7 +86,7 @@
   <div class="example">
     <h2>With Callbacks</h2>
     <NumberInput
-      bind:value={amount}
+      bind:value={amountWithCallbacks}
       options={{ precision: 2 }}
       onInput={handleInput}
       onChange={handleChange}
@@ -102,18 +100,22 @@
 
   <div class="example">
     <h2>Controlled Example</h2>
-    <NumberInput bind:value={amount} options={{ precision: 2 }} class="input" />
+    <NumberInput
+      bind:value={amountControlled}
+      options={{ precision: 2 }}
+      class="input"
+    />
     <div class="buttons">
-      <button onclick={() => (amount = 100)}>Set to 100</button>
-      <button onclick={() => (amount = 1000)}>Set to 1000</button>
-      <button onclick={() => (amount = null)}>Clear</button>
+      <button onclick={() => (amountControlled = 100)}>Set to 100</button>
+      <button onclick={() => (amountControlled = 1000)}>Set to 1000</button>
+      <button onclick={() => (amountControlled = null)}>Clear</button>
     </div>
   </div>
 
   <div class="example">
     <h2>With Value Range</h2>
     <NumberInput
-      bind:value={amount}
+      bind:value={amountWithRange}
       options={{
         precision: 2,
         valueRange: { min: 0, max: 1000 }
@@ -121,14 +123,14 @@
       placeholder="0 - 1000"
       class="input"
     />
-    <p>Value: {amount}</p>
+    <p>Value: {amountWithRange}</p>
     <p>Try entering values outside 0-1000 range and blur the input</p>
   </div>
 
   <div class="example">
     <h2>Auto Decimal Mode</h2>
     <NumberInput
-      bind:value={price}
+      bind:value={priceAutoDecimal}
       options={{
         precision: 2,
         autoDecimalDigits: true
@@ -136,7 +138,7 @@
       placeholder="Type 1234 → 12.34"
       class="input"
     />
-    <p>Value: {price}</p>
+    <p>Value: {priceAutoDecimal}</p>
     <p>Type digits without decimal point - it's inserted automatically</p>
   </div>
 </div>

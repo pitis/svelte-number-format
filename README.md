@@ -1,6 +1,7 @@
 # svelte-number-format
 
-Svelte Number Format is a custom input component for [Svelte 5](https://svelte.dev). It ensures that a user can only enter text that meets specific numeric or string patterns, and formats the input value for display.
+**Svelte Number Format** is a lightweight and reactive number input component for [Svelte 5](https://svelte.dev).  
+It’s built on top of [intl-number-input](https://www.npmjs.com/package/intl-number-input), bringing locale-aware formatting, currency, percent, and advanced numeric input control — with full caret stability and two-way binding.
 
 ## Usage
 
@@ -24,26 +25,26 @@ npm install --save svelte-number-format
 ## Example
 
 ```js
-<script>
-	import { NumberFormat } from 'svelte-number-format'
+<script lang="ts">
+	import SvelteNumberFormat from 'svelte-number-format'
+	import { NumberFormatStyle } from 'intl-number-input'
 
-	let formattedValue = ''
-	let rawValue = ''
+	let amount = $state<number | null>(1234.56)
 </script>
 
-<NumberFormat
-	value={1234567.89}
-	format="#,###.##"
-	decimalSeparator="."
-	thousandSeparator=","
-	onInput={(formatted, raw) => {
-		formattedValue = formatted
-		rawValue = raw
+<SvelteNumberFormat
+	bind:value={amount}
+	locale="en-US"
+	options={{
+		formatStyle: NumberFormatStyle.Currency,
+		currency: 'USD',
+		precision: 2
 	}}
+	placeholder="$0.00"
+	class="input"
 />
 
-<p>Formatted: {formattedValue}</p>
-<p>Raw: {rawValue}</p>
+<p>Value: {amount}</p>
 
 ```
 
