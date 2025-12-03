@@ -1,6 +1,6 @@
 /**
  * Common mask patterns for various input types
- * 
+ *
  * Pattern characters:
  * # = digit (0-9)
  * A = letter (a-z, A-Z)
@@ -13,11 +13,11 @@ export const MaskPatterns = {
   PHONE_US: '(###) ###-####',
   PHONE_US_WITH_EXT: '(###) ###-#### ext. #####',
   PHONE_INTERNATIONAL: '+## (###) ###-####',
-  
+
   // Credit cards
   CREDIT_CARD: '#### #### #### ####',
   CREDIT_CARD_AMEX: '#### ###### #####',
-  
+
   // Dates
   DATE_US: '##/##/####',
   DATE_ISO: '####-##-##',
@@ -25,17 +25,18 @@ export const MaskPatterns = {
   TIME_12H: '##:## AM',
   TIME_24H: '##:##',
   DATETIME_US: '##/##/#### ##:##',
-  
+
   // Identification
   SSN: '###-##-####',
   ZIP_US: '#####',
   ZIP_US_PLUS4: '#####-####',
-  
+
   // Other
   IPV4: '###.###.###.###',
   MAC_ADDRESS: '##:##:##:##:##:##',
-  HEX_COLOR: '#******',
+  HEX_COLOR: '#******'
 } as const
 
-export type MaskPattern = typeof MaskPatterns[keyof typeof MaskPatterns] | string
-
+export type MaskPattern =
+  | (typeof MaskPatterns)[keyof typeof MaskPatterns]
+  | string

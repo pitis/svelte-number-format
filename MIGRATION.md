@@ -6,14 +6,15 @@ Following the naming convention established by [react-number-format](https://www
 
 ### Component Names
 
-| Old Name              | New Name         | Purpose                                    |
-| --------------------- | ---------------- | ------------------------------------------ |
-| `SvelteNumberFormat`  | `NumericFormat`  | Number formatting (currency, percentages)  |
-| `SvelteMaskFormat`    | `PatternFormat`  | Pattern-based masking (phone, cards, etc.) |
+| Old Name             | New Name        | Purpose                                    |
+| -------------------- | --------------- | ------------------------------------------ |
+| `SvelteNumberFormat` | `NumericFormat` | Number formatting (currency, percentages)  |
+| `SvelteMaskFormat`   | `PatternFormat` | Pattern-based masking (phone, cards, etc.) |
 
 ### API Changes
 
 #### NumericFormat (formerly SvelteNumberFormat)
+
 No API changes - works exactly the same, just import the new name:
 
 ```diff
@@ -25,6 +26,7 @@ No API changes - works exactly the same, just import the new name:
 ```
 
 #### PatternFormat (formerly SvelteMaskFormat)
+
 The `mask` prop has been renamed to `format` (though `mask` still works for backwards compatibility):
 
 ```diff
@@ -41,12 +43,12 @@ The old component names are still exported and work identically to the new ones.
 
 ```js
 // Both of these work:
-import { SvelteNumberFormat } from 'svelte-number-format'  // Old (deprecated)
-import { NumericFormat } from 'svelte-number-format'        // New (recommended)
+import { SvelteNumberFormat } from 'svelte-number-format' // Old (deprecated)
+import { NumericFormat } from 'svelte-number-format' // New (recommended)
 
 // Both of these work:
-import { SvelteMaskFormat } from 'svelte-number-format'    // Old (deprecated)
-import { PatternFormat } from 'svelte-number-format'        // New (recommended)
+import { SvelteMaskFormat } from 'svelte-number-format' // Old (deprecated)
+import { PatternFormat } from 'svelte-number-format' // New (recommended)
 ```
 
 ### Why the Change?
@@ -64,4 +66,3 @@ import { PatternFormat } from 'svelte-number-format'        // New (recommended)
 4. Remove old imports once verified
 
 The old names will be maintained for backwards compatibility but may be removed in a future major version.
-

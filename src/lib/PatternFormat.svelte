@@ -7,7 +7,7 @@
     placeholder?: string
     onInput?: (value: string | null, formatted: string | null) => void
     onChange?: (value: string | null, formatted: string | null) => void
-    [key: string]: any
+    [key: string]: unknown
   }
 
   let {
@@ -93,12 +93,6 @@
     return result.masked
   }
 
-  function getUnmaskedValue(val: string | null): string | null {
-    if (!val || !pattern) return val
-    const result = applyMask(val, pattern)
-    return result.raw || null
-  }
-
   function handleInput(e: Event) {
     const target = e.target as HTMLInputElement
     const inputValue = target.value
@@ -147,7 +141,6 @@
       cursorPosition = target.selectionStart || 0
 
       if (cursorPosition > 0 && pattern) {
-        const beforeCursor = target.value.substring(0, cursorPosition)
         const patternChar = pattern[cursorPosition - 1]
 
         // Check if we're on a literal character
