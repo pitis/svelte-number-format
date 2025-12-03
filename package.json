@@ -1,7 +1,7 @@
 {
   "name": "svelte-number-format",
   "description": "Svelte Number Format is a lightweight and reactive number input component for Svelte 5.",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "author": "Pitiș Radu",
   "license": "MIT",
   "repository": {
