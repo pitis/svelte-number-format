@@ -22,7 +22,7 @@
   }: Props = $props()
 
   // Use format if provided, otherwise fall back to mask for backwards compatibility
-  const pattern = format || mask
+  const pattern = $derived(format || mask)
 
   let inputEl: HTMLInputElement | null = null
   let cursorPosition = 0
