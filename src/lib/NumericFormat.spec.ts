@@ -1,16 +1,16 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/svelte'
 import { NumberFormatStyle } from 'intl-number-input'
-import NumberFormat from './SvelteNumberFormat.svelte'
+import NumericFormat from './NumericFormat.svelte'
 
-describe('NumberFormat.svelte', () => {
+describe('NumericFormat.svelte', () => {
   afterEach(() => {
     cleanup()
   })
 
   describe('Basic Number Input', () => {
     it('formats number with thousands separator', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 1234.56,
           options: { precision: 2 }
@@ -27,7 +27,7 @@ describe('NumberFormat.svelte', () => {
     })
 
     it('formats large numbers correctly', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 100012123,
           options: { precision: 2 }
@@ -43,7 +43,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('Currency (USD)', () => {
     it('formats USD currency correctly', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 99.99,
           locale: 'en-US',
@@ -62,7 +62,7 @@ describe('NumberFormat.svelte', () => {
     })
 
     it('formats larger USD amounts', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 1234.56,
           locale: 'en-US',
@@ -83,7 +83,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('Percentage', () => {
     it('formats percentage correctly', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 0.75,
           locale: 'en-US',
@@ -101,7 +101,7 @@ describe('NumberFormat.svelte', () => {
     })
 
     it('formats decimal as percentage', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 0.125,
           locale: 'en-US',
@@ -121,7 +121,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('European Format (EUR)', () => {
     it('formats EUR with European locale', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 1234.56,
           locale: 'de-DE',
@@ -144,7 +144,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('Value Range', () => {
     it('respects min/max value range', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 500,
           options: {
@@ -163,7 +163,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('Auto Decimal Mode', () => {
     it('auto-inserts decimal point', async () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           value: 99.99,
           options: {
@@ -182,7 +182,7 @@ describe('NumberFormat.svelte', () => {
 
   describe('HTML Attributes', () => {
     it('passes through HTML attributes', () => {
-      const { container } = render(NumberFormat, {
+      const { container } = render(NumericFormat, {
         props: {
           placeholder: 'Enter amount',
           class: 'custom-input',
