@@ -510,7 +510,19 @@ import type { MaskPattern } from 'svelte-number-format'
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! This project uses:
+
+- **Husky** - Git hooks for quality checks
+- **lint-staged** - Run checks on staged files only
+- **Pre-commit hooks** - Automatic formatting, linting, and testing
+
+Before each commit, the following runs automatically:
+
+- ✅ Prettier formatting
+- ✅ ESLint linting with auto-fix
+- ✅ Tests for changed files
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development setup and guidelines.
 
 ---
 

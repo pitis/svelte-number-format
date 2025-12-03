@@ -24,7 +24,20 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "test:unit": "vitest",
-    "test": "npm run test:unit -- --run"
+    "test": "npm run test:unit -- --run",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,svelte}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,css,html}": [
+      "prettier --write"
+    ],
+    "src/**/*.{spec,test}.{js,ts}": [
+      "vitest related --run"
+    ]
   },
   "keywords": [
     "svelte",
@@ -79,7 +92,9 @@
     "eslint-plugin-svelte": "^3.13.0",
     "gh-pages": "^6.3.0",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.2.0",
+    "lint-staged": "^16.2.7",
     "playwright": "^1.57.0",
     "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",
