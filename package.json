@@ -2,8 +2,15 @@
   "name": "svelte-number-format",
   "description": "Lightweight and reactive input formatting library for Svelte 5. Includes NumericFormat for numbers/currency and PatternFormat for phone, cards, dates, and custom masks.",
   "version": "1.1.0",
-  "author": "Pitiș Radu",
+  "author": {
+    "name": "Pitiș Radu",
+    "url": "https://github.com/pitis"
+  },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/pitis/svelte-number-format"
@@ -59,22 +66,34 @@
   "files": [
     "dist",
     "!dist/**/*.test.*",
-    "!dist/**/*.spec.*"
+    "!dist/**/*.spec.*",
+    "README.md",
+    "MIGRATION.md",
+    "LICENSE"
   ],
   "sideEffects": [
     "**/*.css"
   ],
+  "type": "module",
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "svelte": "./dist/index.js"
-    }
+      "svelte": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/pitis"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.0",
