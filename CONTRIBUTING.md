@@ -159,6 +159,53 @@ See [TESTING.md](./TESTING.md) for more details.
 3. Update documentation in README
 4. Add tests if needed
 
+## Continuous Integration
+
+### GitHub Actions Workflows
+
+Two workflows run automatically:
+
+#### 1. **CI Workflow** (`.github/workflows/ci.yml`)
+
+Runs on every push and PR to `main` or `develop`:
+
+- ✅ Prettier formatting check
+- ✅ ESLint linting
+- ✅ Svelte type checking
+- ✅ Unit tests
+- ✅ Package build
+
+#### 2. **Deploy Workflow** (`.github/workflows/deploy.yml`)
+
+Runs on push to `main`:
+
+1. ✅ Tests & linting (must pass)
+2. 📦 Build demo site
+3. 🚀 Deploy to GitHub Pages
+
+**Important:** The deploy workflow only proceeds if all tests pass!
+
+See [.github/workflows/README.md](.github/workflows/README.md) for details.
+
+## Quality Checks Summary
+
+Your code goes through multiple layers of validation:
+
+1. **Pre-commit (local)** - Husky + lint-staged
+   - Formats & lints staged files
+   - Runs tests for changed files
+2. **CI (GitHub Actions)** - On every push/PR
+   - Full test suite
+   - Complete linting
+   - Type checking
+   - Build verification
+
+3. **Deploy (GitHub Actions)** - On main branch
+   - All of the above
+   - Deploys only if passing
+
+This ensures high code quality and prevents broken code from being deployed! 🛡️
+
 ## Questions?
 
 Feel free to open an issue for:

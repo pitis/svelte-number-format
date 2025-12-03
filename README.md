@@ -1,5 +1,9 @@
 # svelte-number-format
 
+[![CI](https://github.com/pitis/svelte-number-format/actions/workflows/ci.yml/badge.svg)](https://github.com/pitis/svelte-number-format/actions/workflows/ci.yml)
+[![Deploy](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml/badge.svg)](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml)
+[![npm version](https://badge.fury.io/js/svelte-number-format.svg)](https://www.npmjs.com/package/svelte-number-format)
+
 **Svelte Number Format** is a lightweight and reactive input component library for [Svelte 5](https://svelte.dev).  
 Inspired by [react-number-format](https://www.npmjs.com/package/react-number-format), it provides two powerful components for handling formatted inputs with full caret stability and two-way binding.
 
