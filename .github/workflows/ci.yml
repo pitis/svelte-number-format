@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync SvelteKit
+        run: npx svelte-kit sync
+
       - name: Run Prettier check
         run: npm run format -- --check
 
