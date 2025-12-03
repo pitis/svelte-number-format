@@ -1,9 +1,16 @@
 {
   "name": "svelte-number-format",
-  "description": "Svelte Number Format is a lightweight and reactive number input component for Svelte 5.",
-  "version": "1.0.2",
-  "author": "Pitiș Radu",
+  "description": "Lightweight and reactive input formatting library for Svelte 5. Includes NumericFormat for numbers/currency and PatternFormat for phone, cards, dates, and custom masks.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Pitiș Radu",
+    "url": "https://github.com/pitis"
+  },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/pitis/svelte-number-format"
@@ -24,65 +31,100 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "test:unit": "vitest",
-    "test": "npm run test:unit -- --run"
+    "test": "npm run test:unit -- --run",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,svelte}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,css,html}": [
+      "prettier --write"
+    ],
+    "src/**/*.{spec,test}.{js,ts}": [
+      "vitest related --run"
+    ]
   },
   "keywords": [
-    "svelte-component",
     "svelte",
-    "currency",
-    "input",
-    "number",
+    "svelte5",
+    "svelte-component",
     "number-format",
-    "mask"
+    "currency",
+    "input-mask",
+    "phone-number",
+    "credit-card",
+    "date-input",
+    "pattern-format",
+    "input-formatter",
+    "numeric-input",
+    "formatted-input",
+    "internationalization",
+    "i18n"
   ],
   "files": [
     "dist",
     "!dist/**/*.test.*",
-    "!dist/**/*.spec.*"
+    "!dist/**/*.spec.*",
+    "README.md",
+    "MIGRATION.md",
+    "LICENSE"
   ],
   "sideEffects": [
     "**/*.css"
   ],
+  "type": "module",
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "svelte": "./dist/index.js"
-    }
+      "svelte": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
   },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/pitis"
+  },
   "devDependencies": {
-    "@eslint/compat": "^1.4.0",
-    "@eslint/js": "^9.38.0",
+    "@eslint/compat": "^2.0.0",
+    "@eslint/js": "^9.39.1",
     "@sveltejs/adapter-auto": "^7.0.0",
     "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.47.1",
-    "@sveltejs/package": "^2.5.4",
+    "@sveltejs/kit": "^2.49.1",
+    "@sveltejs/package": "^2.5.7",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "@testing-library/svelte": "^5.2.8",
-    "@types/node": "^22",
-    "@vitest/browser-playwright": "^4.0.5",
-    "eslint": "^9.38.0",
+    "@testing-library/svelte": "^5.2.9",
+    "@types/node": "^24",
+    "@vitest/browser-playwright": "^4.0.15",
+    "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.12.4",
+    "eslint-plugin-svelte": "^3.13.0",
     "gh-pages": "^6.3.0",
-    "globals": "^16.4.0",
-    "jsdom": "^27.1.0",
-    "playwright": "^1.56.1",
-    "prettier": "^3.6.2",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "jsdom": "^27.2.0",
+    "lint-staged": "^16.2.7",
+    "playwright": "^1.57.0",
+    "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",
-    "publint": "^0.3.14",
-    "svelte": "^5.41.0",
-    "svelte-check": "^4.3.3",
+    "publint": "^0.3.15",
+    "svelte": "^5.45.4",
+    "svelte-check": "^4.3.4",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.1",
-    "vite": "^7.1.10",
+    "typescript-eslint": "^8.48.1",
+    "vite": "^7.2.6",
     "vite-plugin-devtools-json": "^1.0.0",
-    "vitest": "^4.0.5",
+    "vitest": "^4.0.15",
     "vitest-browser-svelte": "^2.0.1"
   },
   "dependencies": {

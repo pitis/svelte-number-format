@@ -8,7 +8,7 @@
     options?: Partial<NumberInputOptions>
     onInput?: (raw: number | null, formatted: string | null) => void
     onChange?: (raw: number | null, formatted: string | null) => void
-    [key: string]: any
+    [key: string]: unknown
   }
 
   let {
@@ -22,8 +22,6 @@
 
   let inputEl: HTMLInputElement | null = null
   let numberInput: NumberInput | null = null
-
-  let inputString: string | null = null
   let isFocused = false
 
   $effect(() => {
@@ -38,13 +36,9 @@
         ...options
       },
       onInput: (val: NumberInputValue) => {
-        inputString = val.formatted ?? null
-
         onInput?.(val.number ?? null, val.formatted ?? null)
       },
       onChange: (val: NumberInputValue) => {
-        inputString = val.formatted ?? null
-
         // update external numeric value here
         value = val.number ?? null
         onChange?.(val.number ?? null, val.formatted ?? null)
@@ -53,9 +47,6 @@
 
     if (value != null) {
       numberInput.setValue(value)
-      inputString = numberInput.getValue?.()?.formatted ?? String(value)
-    } else {
-      inputString = null
     }
 
     const handleFocus = () => {
@@ -64,12 +55,9 @@
     const handleBlur = () => {
       isFocused = false
       try {
-        const cur = (numberInput as any).getValue?.() as
-          | NumberInputValue
-          | undefined
+        const cur = numberInput?.getValue?.() as NumberInputValue | undefined
         if (cur) {
           value = cur.number ?? null
-          inputString = cur.formatted ?? null
         } else {
           const parsed = inputEl?.value
             ? Number(inputEl.value.replace(/\s/g, ''))
@@ -97,15 +85,6 @@
     if (isFocused) return
 
     numberInput.setValue(value ?? null)
-
-    try {
-      const cur = (numberInput as any).getValue?.() as
-        | NumberInputValue
-        | undefined
-      inputString = cur?.formatted ?? (value != null ? String(value) : null)
-    } catch {
-      inputString = value != null ? String(value) : null
-    }
   })
 </script>
 
