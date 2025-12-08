@@ -1,10 +1,39 @@
 <script lang="ts">
+  import {
+    InputValidators,
+    type InputValidatorsKeys
+  } from './inputValidations.js'
+
+  type WithValidation =
+    | {
+        reportAs: 'css-class'
+        className: {
+          valid: string
+          invalid: string
+        }
+        applyOn: 'input' | 'change' | 'both'
+        validate: ((value: string) => boolean) | InputValidatorsKeys
+      }
+    | {
+        reportAs: 'data-attribute'
+        attributeName: string
+        applyOn: 'input' | 'change' | 'both'
+        validate: ((value: string) => boolean) | InputValidatorsKeys
+      }
+    | {
+        reportAs: 'callback'
+        applyOn: 'input' | 'change' | 'both'
+        validate: ((value: string) => boolean) | InputValidatorsKeys
+        onValidation: (isValid: boolean) => void
+      }
+
   interface Props {
     value?: string | null
     format?: string
     mask?: string // deprecated, use format
     maskChar?: string
     placeholder?: string
+    withValidation?: WithValidation
     onInput?: (value: string | null, formatted: string | null) => void
     onChange?: (value: string | null, formatted: string | null) => void
     [key: string]: unknown
@@ -16,6 +45,7 @@
     mask = '', // deprecated
     maskChar = '_',
     placeholder = '',
+    withValidation,
     onInput = () => {},
     onChange = () => {},
     ...restProps
@@ -121,6 +151,22 @@
 
     // Call callback
     onInput?.(result.raw || null, formatted || null)
+    if (withValidation !== undefined) {
+      if (withValidation.applyOn !== 'change') {
+        let validationResult = null
+
+        if (typeof withValidation.validate === 'function') {
+          validationResult = withValidation.validate(result.raw)
+        } else {
+          validationResult = handleValidation(
+            result.raw,
+            withValidation.validate
+          )
+        }
+
+        handleValidationReporting(validationResult, target)
+      }
+    }
   }
 
   function handleChange(e: Event) {
@@ -131,6 +177,23 @@
     target.value = result.masked
 
     onChange?.(result.raw || null, result.masked || null)
+
+    if (withValidation !== undefined) {
+      if (withValidation.applyOn !== 'input') {
+        let validationResult = null
+
+        if (typeof withValidation.validate === 'function') {
+          validationResult = withValidation.validate(result.raw)
+        } else {
+          validationResult = handleValidation(
+            result.raw,
+            withValidation.validate
+          )
+        }
+
+        handleValidationReporting(validationResult, target)
+      }
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -160,6 +223,46 @@
           handleInput(new Event('input'))
         }
       }
+    }
+  }
+
+  function handleValidation(value: string, validator: InputValidatorsKeys) {
+    let validate = InputValidators[validator]
+
+    if (!validate) {
+      console.warn(`No validator found for key: ${validator}`)
+
+      validate = () => true
+    }
+
+    return validate(value)
+  }
+
+  function handleValidationReporting(
+    result: boolean,
+    inputEl: HTMLInputElement
+  ) {
+    if (!withValidation) return
+
+    switch (withValidation.reportAs) {
+      case 'css-class':
+        if (result) {
+          inputEl.classList.remove(withValidation.className.invalid)
+          inputEl.classList.add(withValidation.className.valid)
+        } else {
+          inputEl.classList.remove(withValidation.className.valid)
+          inputEl.classList.add(withValidation.className.invalid)
+        }
+        break
+      case 'data-attribute':
+        inputEl.setAttribute(
+          withValidation.attributeName,
+          result ? 'true' : 'false'
+        )
+        break
+      case 'callback':
+        withValidation.onValidation(result)
+        break
     }
   }
 

@@ -28,6 +28,7 @@ export const MaskPatterns = {
 
   // Identification
   SSN: '###-##-####',
+  BRAZILIAN_CPF: '###.###.###-##',
   ZIP_US: '#####',
   ZIP_US_PLUS4: '#####-####',
 
@@ -37,6 +38,6 @@ export const MaskPatterns = {
   HEX_COLOR: '#******'
 } as const
 
-export type MaskPattern =
-  | (typeof MaskPatterns)[keyof typeof MaskPatterns]
-  | string
+export type MaskPatternKeys = keyof typeof MaskPatterns
+
+export type MaskPattern = (typeof MaskPatterns)[MaskPatternKeys] | string

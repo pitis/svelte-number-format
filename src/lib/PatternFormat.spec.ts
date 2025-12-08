@@ -1,7 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/svelte'
 import PatternFormat from './PatternFormat.svelte'
 import { MaskPatterns } from './maskPatterns.js'
+import { InputValidators } from './inputValidations.js'
 
 describe('PatternFormat.svelte', () => {
   afterEach(() => {
@@ -167,6 +168,199 @@ describe('PatternFormat.svelte', () => {
       await fireEvent.input(input)
 
       expect(input.value).toBe('12345-6789')
+    })
+  })
+
+  describe('Brazilian CPF - Formatting', () => {
+    it('formats Brazilian CPF correctly', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.BRAZILIAN_CPF
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.input(input, { target: { value: '12312312300' } })
+      expect(input.value).toBe('123.123.123-00')
+    })
+  })
+
+  describe('Brazilian CPF - Event Triggers', () => {
+    it('validates only on input when configured', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          withValidation: {
+            reportAs: 'css-class',
+            validate: InputValidators.BRAZILIAN_CPF,
+            className: { valid: 'valid', invalid: 'invalid' },
+            applyOn: 'input'
+          }
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      // Should've been validated
+      await fireEvent.input(input, { target: { value: '1' } })
+      expect(input.classList.contains('invalid')).toBe(true)
+      expect(input.classList.contains('valid')).toBe(false)
+
+      // Should NOT validate
+      await fireEvent.change(input, { target: { value: '14550200286' } })
+      expect(input.classList.contains('valid')).toBe(false)
+      expect(input.classList.contains('invalid')).toBe(true)
+    })
+
+    it('validates only on change when configured', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          withValidation: {
+            reportAs: 'css-class',
+            validate: InputValidators.BRAZILIAN_CPF,
+            className: { valid: 'valid', invalid: 'invalid' },
+            applyOn: 'change'
+          }
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      // Should NOT validate yet
+      await fireEvent.input(input, { target: { value: '14550200286' } })
+      expect(input.classList.contains('valid')).toBe(false)
+      expect(input.classList.contains('invalid')).toBe(false)
+
+      await fireEvent.change(input)
+      expect(input.classList.contains('valid')).toBe(true)
+      expect(input.classList.contains('invalid')).toBe(false)
+    })
+
+    it('validates  on both input and change when configured', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          withValidation: {
+            reportAs: 'css-class',
+            validate: InputValidators.BRAZILIAN_CPF,
+            className: { valid: 'valid', invalid: 'invalid' },
+            applyOn: 'both'
+          }
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      // Should've been validated
+      await fireEvent.input(input, { target: { value: '1' } })
+      expect(input.classList.contains('invalid')).toBe(true)
+      expect(input.classList.contains('valid')).toBe(false)
+
+      // Should've been validated
+      await fireEvent.change(input, { target: { value: '14550200286' } })
+      expect(input.classList.contains('valid')).toBe(true)
+      expect(input.classList.contains('invalid')).toBe(false)
+    })
+  })
+
+  describe('Brazilian CPF - Validation - Reporting', () => {
+    describe('reportsAs: css-class', () => {
+      const cssProps = {
+        format: MaskPatterns.BRAZILIAN_CPF,
+        withValidation: {
+          reportAs: 'css-class',
+          validate: InputValidators.BRAZILIAN_CPF,
+          className: {
+            valid: 'input-valid',
+            invalid: 'input-error'
+          },
+          applyOn: 'input'
+        }
+      }
+
+      it('applies valid/invalid classes on input change', async () => {
+        const { container } = render(PatternFormat, { props: cssProps })
+        const input = container.querySelector('input') as HTMLInputElement
+
+        // Test Invalid Case
+        await fireEvent.input(input, { target: { value: '11111111111' } })
+        expect(input.classList.contains('input-error')).toBe(true)
+        expect(input.classList.contains('input-valid')).toBe(false)
+
+        // Test Valid Case
+        await fireEvent.input(input, { target: { value: '14550200286' } })
+        expect(input.classList.contains('input-valid')).toBe(true)
+        expect(input.classList.contains('input-error')).toBe(false)
+      })
+    })
+
+    describe('reportAs: data-attribute', () => {
+      const dataProps = {
+        format: MaskPatterns.BRAZILIAN_CPF,
+        withValidation: {
+          reportAs: 'data-attribute',
+          validate: InputValidators.BRAZILIAN_CPF,
+          attributeName: 'data-is-valid'
+        }
+      }
+
+      it('updates the data attribute correctly', async () => {
+        const { container } = render(PatternFormat, { props: dataProps })
+        const input = container.querySelector('input') as HTMLInputElement
+
+        // Test Invalid Case
+        await fireEvent.input(input, { target: { value: '11111111111' } })
+        expect(input.getAttribute('data-is-valid')).toBe('false')
+
+        // Test Valid Case
+        await fireEvent.input(input, { target: { value: '14550200286' } })
+        expect(input.getAttribute('data-is-valid')).toBe('true')
+      })
+    })
+
+    describe('reportAs: callback', () => {
+      it('fires the callback with validation result', async () => {
+        const spy = vi.fn()
+
+        const { container } = render(PatternFormat, {
+          props: {
+            format: MaskPatterns.BRAZILIAN_CPF,
+            withValidation: {
+              reportAs: 'callback',
+              validate: InputValidators.BRAZILIAN_CPF,
+              onValidation: spy
+            }
+          }
+        })
+        const input = container.querySelector('input') as HTMLInputElement
+
+        // Trigger Invalid
+        await fireEvent.input(input, { target: { value: '11111111111' } })
+        expect(spy).toHaveBeenLastCalledWith(false)
+
+        // Trigger Valid
+        await fireEvent.input(input, { target: { value: '14550200286' } })
+        expect(spy).toHaveBeenLastCalledWith(true)
+      })
+    })
+  })
+
+  describe('Brazilian CPF - Validation - Custom Validator', () => {
+    it('uses a custom function passed as a prop', async () => {
+      const customValidator = (val: string) => val === 'magic-word'
+
+      const { container } = render(PatternFormat, {
+        props: {
+          withValidation: {
+            reportAs: 'data-attribute',
+            validate: customValidator,
+            attributeName: 'data-magic'
+          }
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.input(input, { target: { value: 'wrong' } })
+      expect(input.getAttribute('data-magic')).toBe('false')
+
+      await fireEvent.input(input, { target: { value: 'magic-word' } })
+      expect(input.getAttribute('data-magic')).toBe('true')
     })
   })
 
