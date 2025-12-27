@@ -18,6 +18,7 @@
 
   // Mask input states
   let phoneNumber = $state<string | null>(null)
+  let phoneInternational = $state<string | null>(null)
   let creditCard = $state<string | null>(null)
   let dateInput = $state<string | null>(null)
   let ssnInput = $state<string | null>(null)
@@ -211,6 +212,19 @@
     />
     <p>Raw Value: {phoneNumber || 'null'}</p>
     <p>Pattern: (###) ###-####</p>
+  </div>
+
+  <div class="example">
+    <h2>Phone Number (International Format)</h2>
+    <PatternFormat
+      bind:value={phoneInternational}
+      format={MaskPatterns.PHONE_INTERNATIONAL}
+      placeholder="+12 (345) 678-9012"
+      class="input"
+      onInput={handleMaskInput}
+    />
+    <p>Raw Value: {phoneInternational || 'null'}</p>
+    <p>Pattern: +## (###) ###-####</p>
   </div>
 
   <div class="example">

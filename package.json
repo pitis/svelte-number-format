@@ -1,7 +1,7 @@
 {
   "name": "svelte-number-format",
   "description": "Lightweight and reactive input formatting library for Svelte 5. Includes NumericFormat for numbers/currency and PatternFormat for phone, cards, dates, and custom masks.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "Pitiș Radu",
     "url": "https://github.com/pitis"

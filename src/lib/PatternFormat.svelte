@@ -93,6 +93,99 @@
     return result.masked
   }
 
+  function calculateCursorPosition(
+    oldCursorPos: number,
+    oldValue: string,
+    newValue: string,
+    pattern: string
+  ): number {
+    // Count how many raw characters were before the cursor
+    // We need to map the cursor position in the old (possibly formatted) value
+    // to how many raw characters that represents
+    let rawCharsBeforeCursor = 0
+    let oldPos = 0
+    let patternPos = 0
+
+    while (
+      oldPos < oldCursorPos &&
+      oldPos < oldValue.length &&
+      patternPos < pattern.length
+    ) {
+      const patternChar = pattern[patternPos]
+      const oldChar = oldValue[oldPos]
+
+      if (patternChar === '#' || patternChar === 'A' || patternChar === '*') {
+        // This is a pattern position
+        if (isValidChar(oldChar, patternChar)) {
+          rawCharsBeforeCursor++
+          oldPos++
+          patternPos++
+        } else {
+          // Character doesn't match pattern, skip it
+          oldPos++
+        }
+      } else {
+        // Literal character
+        if (oldChar === patternChar) {
+          // Matches literal, skip it
+          oldPos++
+          patternPos++
+        } else {
+          // User typed a raw char where literal should be, count it
+          rawCharsBeforeCursor++
+          oldPos++
+        }
+      }
+    }
+
+    // Count any remaining characters beyond the pattern
+    while (oldPos < oldCursorPos && oldPos < oldValue.length) {
+      rawCharsBeforeCursor++
+      oldPos++
+    }
+
+    // Now find where those raw characters end up in the new formatted value
+    let newCursorPos = 0
+    let rawCharsCounted = 0
+    patternPos = 0
+
+    while (
+      patternPos < pattern.length &&
+      rawCharsCounted < rawCharsBeforeCursor &&
+      newCursorPos < newValue.length
+    ) {
+      const patternChar = pattern[patternPos]
+      const newChar = newValue[newCursorPos]
+
+      if (patternChar === '#' || patternChar === 'A' || patternChar === '*') {
+        if (isValidChar(newChar, patternChar)) {
+          rawCharsCounted++
+          newCursorPos++
+          patternPos++
+        } else {
+          // Shouldn't happen in formatted string, but advance
+          newCursorPos++
+          patternPos++
+        }
+      } else {
+        // Literal - always include it
+        newCursorPos++
+        patternPos++
+      }
+    }
+
+    // If we still need more positions (beyond pattern)
+    while (
+      rawCharsCounted < rawCharsBeforeCursor &&
+      newCursorPos < newValue.length
+    ) {
+      newCursorPos++
+      rawCharsCounted++
+    }
+
+    return Math.min(newCursorPos, newValue.length)
+  }
+
   function handleInput(e: Event) {
     const target = e.target as HTMLInputElement
     const inputValue = target.value
@@ -106,12 +199,13 @@
     // Update the display value
     target.value = formatted
 
-    // Calculate new cursor position
-    let newCursorPos = cursorPosition
-    if (formatted.length > inputValue.length) {
-      // Mask characters were added, adjust cursor
-      newCursorPos = Math.min(cursorPosition + 1, formatted.length)
-    }
+    // Calculate new cursor position based on raw characters typed
+    const newCursorPos = calculateCursorPosition(
+      cursorPosition,
+      inputValue,
+      formatted,
+      pattern
+    )
 
     // Restore cursor position
     target.setSelectionRange(newCursorPos, newCursorPos)
