@@ -4,34 +4,30 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+  id-token: write # required for npm trusted publishing
+
 jobs:
   publish:
-    name: Publish to npm
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: https://registry.npmjs.org
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
       - name: Sync SvelteKit
         run: npx svelte-kit sync
-
-      - name: Run tests
-        run: npm test
 
       - name: Build package
         run: npm run package

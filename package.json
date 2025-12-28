@@ -6,6 +6,9 @@
     "name": "Pitiș Radu",
     "url": "https://github.com/pitis"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
@@ -25,7 +28,6 @@
     "preview": "vite preview",
     "package": "svelte-kit sync && svelte-package && publint",
     "deploy": "npm run build && gh-pages -d build",
-    "prepublishOnly": "npm run package",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write .",
