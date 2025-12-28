@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { InputValidators } from '$lib/inputValidations.js'
   import {
     NumericFormat,
     PatternFormat,
@@ -24,6 +25,59 @@
   let ssnInput = $state<string | null>(null)
   let zipCode = $state<string | null>(null)
   let customMask = $state<string | null>(null)
+
+  // CPF related states
+  type cpfValidationOptions =
+    | 'none'
+    | 'css-class'
+    | 'data-attribute'
+    | 'callback'
+  let cpfInput = $state<string | null>(null)
+  let previousCpfValidationOption: cpfValidationOptions = 'none'
+  let cpfValidationOption = $state<cpfValidationOptions>('none')
+  let validationConfig = $derived.by(() => {
+    let validate = InputValidators.BRAZILIAN_CPF
+    if (validate === undefined) {
+      console.warn(`No validator found for key: BRAZILIAN_CPF`)
+
+      validate = () => true
+    }
+
+    switch (cpfValidationOption) {
+      case 'css-class':
+        return {
+          reportAs: 'css-class',
+          validate,
+          className: {
+            valid: 'input-valid',
+            invalid: 'input-error'
+          },
+          applyOn: 'input'
+        } as const
+
+      case 'data-attribute':
+        return {
+          reportAs: 'data-attribute',
+          validate,
+          attributeName: 'data-is-valid',
+          applyOn: 'change'
+        } as const
+
+      case 'callback':
+        return {
+          reportAs: 'callback',
+          applyOn: 'both',
+          validate,
+          onValidation: (isValid: boolean) => {
+            console.log('CPF validation result:', isValid)
+          }
+        } as const
+
+      case 'none':
+      default:
+        return undefined
+    }
+  })
 
   // Dark mode state
   let darkMode = $state(false)
@@ -62,6 +116,19 @@
 
   function handleMaskInput(raw: string | null, masked: string | null) {
     console.log('Mask Input - Raw:', raw, 'Masked:', masked)
+  }
+
+  function handleBrazilianCPFValidationSelection() {
+    const inputEl = document.getElementById('cpf-input') as HTMLInputElement
+
+    if (previousCpfValidationOption === 'css-class') {
+      inputEl.classList.remove('input-valid')
+      inputEl.classList.remove('input-error')
+    } else if (previousCpfValidationOption === 'data-attribute') {
+      inputEl.removeAttribute('data-is-valid')
+    }
+
+    previousCpfValidationOption = cpfValidationOption
   }
 </script>
 
@@ -276,6 +343,75 @@
   </div>
 
   <div class="example">
+    <h2>Brazilian CPF</h2>
+    <PatternFormat
+      id="cpf-input"
+      bind:value={cpfInput}
+      format={MaskPatterns.BRAZILIAN_CPF}
+      placeholder="123.123.123-00"
+      class="input"
+      withValidation={validationConfig}
+    />
+    <p>Raw Value: {cpfInput || 'null'}</p>
+    <p>Pattern: ###.###.###-##</p>
+    <fieldset class="radio-group">
+      <legend>With value validation</legend>
+      <div>
+        <input
+          type="radio"
+          id="none"
+          name="validation-option"
+          value="none"
+          checked
+          bind:group={cpfValidationOption}
+          onchange={handleBrazilianCPFValidationSelection}
+        />
+        <label for="none">None</label>
+      </div>
+      <div>
+        <input
+          type="radio"
+          id="css-class"
+          name="validation-option"
+          value="css-class"
+          bind:group={cpfValidationOption}
+          onchange={handleBrazilianCPFValidationSelection}
+        />
+        <label for="css-class">
+          Class Name (input-error) - Text color style - Apply on input event</label
+        >
+      </div>
+      <div>
+        <input
+          type="radio"
+          id="data-attribute"
+          name="validation-option"
+          value="data-attribute"
+          bind:group={cpfValidationOption}
+          onchange={handleBrazilianCPFValidationSelection}
+        />
+        <label for="data-attribute">
+          Data Attribute (data-is-valid) - Border color style - Apply on change
+          event
+        </label>
+      </div>
+      <div>
+        <input
+          type="radio"
+          id="callback"
+          name="validation-option"
+          value="callback"
+          bind:group={cpfValidationOption}
+          onchange={handleBrazilianCPFValidationSelection}
+        />
+        <label for="callback">
+          Callback (console.log) - Printed to console - Apply on both events
+        </label>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="example">
     <h2>Custom Pattern</h2>
     <PatternFormat
       bind:value={customMask}
@@ -300,6 +436,8 @@
     --button-bg: #4a90e2;
     --button-bg-hover: #357abd;
     --button-text: #ffffff;
+    --success: #22bb33;
+    --destructive: #e55032;
     transition:
       background-color 0.3s ease,
       color 0.3s ease;
@@ -316,6 +454,8 @@
     --button-bg: #4a90e2;
     --button-bg-hover: #6db3f2;
     --button-text: #ffffff;
+    --success: #22bb33;
+    --destructive: #e55032;
   }
 
   :global(body) {
@@ -430,6 +570,28 @@
   :global(.input:focus) {
     outline: none;
     border-color: var(--border-color-focus);
+  }
+
+  :global(.input-valid) {
+    color: var(--success);
+    border-color: var(--success) !important;
+  }
+
+  :global(.input-error) {
+    color: var(--destructive);
+    border-color: var(--destructive) !important;
+  }
+
+  :global([data-is-valid='true']) {
+    border: 2px solid var(--success);
+    border-color: var(--success) !important;
+    background-color: color-mix(in srgb, var(--success), transparent 90%);
+  }
+
+  :global([data-is-valid='false']) {
+    border: 2px solid var(--destructive);
+    border-color: var(--destructive) !important;
+    background-color: color-mix(in srgb, var(--destructive), transparent 90%);
   }
 
   p {
