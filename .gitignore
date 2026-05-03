@@ -25,3 +25,8 @@ vite.config.ts.timestamp-*
 
 # Tooling artifacts
 .playwright-mcp/
+.claude/
+
+# Design references (reference material, not project code)
+design_handoff_landing_page/
+SvelteNumberFormat.zip

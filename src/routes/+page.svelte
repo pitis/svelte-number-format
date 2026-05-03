@@ -1,71 +1,524 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
+  import { base } from '$app/paths'
   import {
     NumericFormat,
     PatternFormat,
     NumericText,
-    PatternText,
     NumberFormatStyle,
-    MaskPatterns,
-    type NumberFormatValues
+    MaskPatterns
   } from '../lib/index.js'
 
-  // Numeric demos
-  let amountBasic = $state<number | null>(1234.56)
-  let priceCurrency = $state<number | null>(9999.99)
-  let euroAmount = $state<number | null>(1234.56)
-  let percentage = $state<number | null>(0.75)
-  let amountWithRange = $state<number | null>(500)
-  let priceAutoDecimal = $state<number | null>(99.99)
-  let lastValueChange = $state<NumberFormatValues | null>(null)
+  const VERSION = '2.0.0'
 
-  // Pattern demos
-  let phoneNumber = $state<string | null>('4155551234')
-  let phoneInternational = $state<string | null>(null)
-  let creditCard = $state<string | null>(null)
-  let dateInput = $state<string | null>('12252026')
-  let ssnInput = $state<string | null>(null)
-  let hexColor = $state<string | null>('ff6a3d')
-  let binaryInput = $state<string | null>(null)
-  let phoneAllowEmpty = $state<string | null>(null)
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  let dark = $state(false)
 
-  // Display demos
-  const displayTableRows = [
-    { label: 'Base rate', value: 1485.0, currency: 'USD' },
-    { label: 'European', value: 2310.5, currency: 'EUR', locale: 'de-DE' },
-    { label: 'Yen', value: 199800, currency: 'JPY', locale: 'ja-JP' },
-    { label: 'Swiss', value: 819.25, currency: 'CHF', locale: 'de-CH' }
+  onMount(() => {
+    const stored = localStorage.getItem('snf-theme')
+    if (stored === 'dark' || stored === 'light') {
+      dark = stored === 'dark'
+    } else {
+      dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+  })
+
+  $effect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('snf-theme', dark ? 'dark' : 'light')
+    }
+  })
+
+  // ── Hero playground ───────────────────────────────────────────────────────
+  type PgTab = 'currency' | 'percent' | 'decimal' | 'phone' | 'card'
+  let pgTab = $state<PgTab>('currency')
+
+  let pgCurrency = $state<number | null>(1234.56)
+  let pgPercent = $state<number | null>(0.0875)
+  let pgDecimal = $state<number | null>(1234567.89)
+  let pgPhone = $state<string | null>('5551234567')
+  let pgCard = $state<string | null>('4242424242424242')
+
+  let pgLocale = $state('en-US')
+  let pgCurrencyCode = $state('USD')
+  let pgPrecision = $state(2)
+
+  const pgIsNumeric = $derived(
+    pgTab === 'currency' || pgTab === 'percent' || pgTab === 'decimal'
+  )
+
+  const pgPattern = $derived(
+    pgTab === 'phone'
+      ? MaskPatterns.PHONE_US
+      : pgTab === 'card'
+        ? MaskPatterns.CREDIT_CARD
+        : ''
+  )
+
+  const pgRaw = $derived.by(() => {
+    if (pgTab === 'currency') return pgCurrency
+    if (pgTab === 'percent') return pgPercent
+    if (pgTab === 'decimal') return pgDecimal
+    if (pgTab === 'phone') return pgPhone
+    return pgCard
+  })
+
+  const pgFormatted = $derived.by(() => {
+    if (pgIsNumeric) {
+      const n = pgRaw as number | null
+      if (n == null) return ''
+      try {
+        const opts: Intl.NumberFormatOptions = {
+          minimumFractionDigits: pgPrecision,
+          maximumFractionDigits: pgPrecision
+        }
+        if (pgTab === 'currency') {
+          opts.style = 'currency'
+          opts.currency = pgCurrencyCode
+        } else if (pgTab === 'percent') {
+          opts.style = 'percent'
+        }
+        return new Intl.NumberFormat(pgLocale, opts).format(n)
+      } catch {
+        return String(n)
+      }
+    }
+    const raw = (pgRaw as string | null) ?? ''
+    return applyMaskDisplay(raw, pgPattern)
+  })
+
+  function applyMaskDisplay(raw: string, pattern: string): string {
+    if (!raw || !pattern) return raw
+    let out = ''
+    let ri = 0
+    for (let i = 0; i < pattern.length && ri < raw.length; i++) {
+      const ch = pattern[i]
+      const r = raw[ri]
+      if (ch === '#') {
+        if (/\d/.test(r)) {
+          out += r
+          ri++
+        } else {
+          ri++
+          i--
+        }
+      } else if (ch === 'A') {
+        if (/[a-zA-Z]/.test(r)) {
+          out += r
+          ri++
+        } else {
+          ri++
+          i--
+        }
+      } else if (ch === '*') {
+        if (/[a-zA-Z0-9]/.test(r)) {
+          out += r
+          ri++
+        } else {
+          ri++
+          i--
+        }
+      } else {
+        out += ch
+      }
+    }
+    return out
+  }
+
+  type Preset = { label: string; apply: () => void }
+  const pgPresets = $derived.by<Preset[]>(() => {
+    if (pgTab === 'currency')
+      return [
+        { label: 'Coffee', apply: () => (pgCurrency = 4.5) },
+        { label: 'Subscription', apply: () => (pgCurrency = 99) },
+        { label: 'Invoice', apply: () => (pgCurrency = 12480.5) },
+        { label: 'Reset', apply: () => (pgCurrency = null) }
+      ]
+    if (pgTab === 'percent')
+      return [
+        { label: 'APY', apply: () => (pgPercent = 0.0425) },
+        { label: 'Fee', apply: () => (pgPercent = 0.029) },
+        { label: 'Tax', apply: () => (pgPercent = 0.21) },
+        { label: 'Reset', apply: () => (pgPercent = null) }
+      ]
+    if (pgTab === 'decimal')
+      return [
+        { label: 'Million', apply: () => (pgDecimal = 1_000_000) },
+        { label: 'Pi×100k', apply: () => (pgDecimal = 314159.27) },
+        { label: 'Negative', apply: () => (pgDecimal = -42.5) },
+        { label: 'Reset', apply: () => (pgDecimal = null) }
+      ]
+    if (pgTab === 'phone')
+      return [
+        { label: 'Test #', apply: () => (pgPhone = '5551234567') },
+        { label: 'SF', apply: () => (pgPhone = '4155550199') },
+        { label: 'NY', apply: () => (pgPhone = '2125555512') },
+        { label: 'Clear', apply: () => (pgPhone = '') }
+      ]
+    return [
+      { label: 'Visa', apply: () => (pgCard = '4242424242424242') },
+      { label: 'MC', apply: () => (pgCard = '5555555555554444') },
+      { label: 'Amex', apply: () => (pgCard = '378282246310005') },
+      { label: 'Clear', apply: () => (pgCard = '') }
+    ]
+  })
+
+  // ── Numeric showcase ──────────────────────────────────────────────────────
+  let showCurrency = $state<number | null>(99.99)
+  let showPercent = $state<number | null>(0.0875)
+  let showDecimal = $state<number | null>(1234567.89)
+
+  // ── Pattern showcase ──────────────────────────────────────────────────────
+  const patternDemos = [
+    {
+      id: 'phone',
+      name: 'Phone (US)',
+      tag: 'PHONE_US',
+      pattern: MaskPatterns.PHONE_US
+    },
+    {
+      id: 'card',
+      name: 'Credit Card',
+      tag: 'CREDIT_CARD',
+      pattern: MaskPatterns.CREDIT_CARD
+    },
+    { id: 'ssn', name: 'SSN', tag: 'SSN', pattern: MaskPatterns.SSN },
+    {
+      id: 'date',
+      name: 'Date (US)',
+      tag: 'DATE_US',
+      pattern: MaskPatterns.DATE_US
+    },
+    { id: 'ip', name: 'IPv4', tag: 'IPV4', pattern: MaskPatterns.IPV4 },
+    {
+      id: 'mac',
+      name: 'MAC Address',
+      tag: 'MAC',
+      pattern: MaskPatterns.MAC_ADDRESS
+    }
+  ] as const
+
+  const patternValues = $state<Record<string, string | null>>({
+    phone: '4155550199',
+    card: '4242424242424242',
+    ssn: '123456789',
+    date: '12252024',
+    ip: '192168011',
+    mac: 'a4c138ff0211'
+  })
+
+  // ── Locale gallery ────────────────────────────────────────────────────────
+  let galleryNumber = $state<number | null>(1234567.89)
+  let galleryStyle = $state<'decimal' | 'currency' | 'percent'>('currency')
+  let galleryActive = $state('en-US')
+
+  const locales = [
+    { id: 'en-US', name: 'United States', ccy: 'USD' },
+    { id: 'de-DE', name: 'Germany', ccy: 'EUR' },
+    { id: 'fr-FR', name: 'France', ccy: 'EUR' },
+    { id: 'ja-JP', name: 'Japan', ccy: 'JPY' },
+    { id: 'en-GB', name: 'United Kingdom', ccy: 'GBP' },
+    { id: 'pt-BR', name: 'Brazil', ccy: 'BRL' },
+    { id: 'hi-IN', name: 'India', ccy: 'INR' },
+    { id: 'sv-SE', name: 'Sweden', ccy: 'SEK' }
+  ] as const
+
+  function localeOptions(ccy: string) {
+    if (galleryStyle === 'currency')
+      return {
+        formatStyle: NumberFormatStyle.Currency,
+        currency: ccy,
+        precision: 2
+      }
+    if (galleryStyle === 'percent')
+      return { formatStyle: NumberFormatStyle.Percent, precision: 2 }
+    return { formatStyle: NumberFormatStyle.Decimal, precision: 2 }
+  }
+
+  // For the percent style we divide by 1000 so a default like 1234567.89
+  // doesn't render as "12345678900%" — same trick the design prototype uses.
+  const galleryDisplayValue = $derived.by(() => {
+    if (galleryNumber == null) return null
+    return galleryStyle === 'percent' ? galleryNumber / 1000 : galleryNumber
+  })
+
+  // ── Install ───────────────────────────────────────────────────────────────
+  let pkgManager = $state<'npm' | 'pnpm' | 'yarn' | 'bun'>('npm')
+  const installCmd = $derived(
+    pkgManager === 'pnpm'
+      ? 'pnpm add svelte-number-format'
+      : pkgManager === 'yarn'
+        ? 'yarn add svelte-number-format'
+        : pkgManager === 'bun'
+          ? 'bun add svelte-number-format'
+          : 'npm i svelte-number-format'
+  )
+
+  // ── Copy state ────────────────────────────────────────────────────────────
+  let copiedKey = $state<string | null>(null)
+  function copy(key: string, text: string) {
+    navigator.clipboard?.writeText(text)
+    copiedKey = key
+    setTimeout(() => {
+      if (copiedKey === key) copiedKey = null
+    }, 1400)
+  }
+
+  // ── Features list ─────────────────────────────────────────────────────────
+  const features = [
+    {
+      num: '01',
+      title: 'Caret stable',
+      desc: 'Type, paste, delete from the middle. The caret never jumps to the end.',
+      glyph: '1,2|34.56'
+    },
+    {
+      num: '02',
+      title: 'Two-way binding',
+      desc: 'bind:value works exactly like a native input. Programmatic updates re-format on the spot.',
+      glyph: '$ ↔ 99.99'
+    },
+    {
+      num: '03',
+      title: 'Locale-aware',
+      desc: 'Built on Intl.NumberFormat. Switch between en-US, de-DE, ja-JP without re-mounting.',
+      glyph: '1,234 / 1.234 / 1 234'
+    },
+    {
+      num: '04',
+      title: 'Currency, %, decimal',
+      desc: 'NumericFormat covers the three styles you actually use, with precision and grouping.',
+      glyph: '$ · % · #'
+    },
+    {
+      num: '05',
+      title: '15+ pattern masks',
+      desc: 'Phone, credit card, SSN, dates, IPs, MAC, hex — drop in MaskPatterns.* and ship.',
+      glyph: '###-##-####'
+    },
+    {
+      num: '06',
+      title: 'Svelte 5 native',
+      desc: 'Built for runes ($state, $derived). No legacy stores, no compat shims.',
+      glyph: '$state'
+    },
+    {
+      num: '07',
+      title: 'TypeScript first',
+      desc: 'Strict types throughout. Autocomplete on every option, every mask.',
+      glyph: '<T>'
+    },
+    {
+      num: '08',
+      title: 'SSR-safe display',
+      desc: 'NumericText and PatternText render formatted values server-side with no DOM.',
+      glyph: '<span> · SSR'
+    }
   ]
 
-  let darkMode = $state(false)
+  // ── Code examples ─────────────────────────────────────────────────────────
+  type Tok = [string, string]
+  type CodeLine = Tok[]
 
-  $effect(() => {
-    const stored = localStorage.getItem('darkMode')
-    if (stored !== null) {
-      darkMode = stored === 'true'
-    } else {
-      darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
-  })
+  const codeCurrency: { file: string; raw: string; lines: CodeLine[] } = {
+    file: 'Currency.svelte',
+    raw: [
+      '<script lang="ts">',
+      "  import { NumericFormat, NumberFormatStyle } from 'svelte-number-format'",
+      '',
+      '  let price = $state<number | null>(99.99)',
+      '<' + '/script>',
+      '',
+      '<NumericFormat',
+      '  bind:value={price}',
+      '  locale="en-US"',
+      '  options={{',
+      '    formatStyle: NumberFormatStyle.Currency,',
+      "    currency: 'USD', precision: 2",
+      '  }}',
+      '/>',
+      '<!-- User sees: $99.99 -->'
+    ].join('\n'),
+    lines: [
+      [
+        ['<', 'pun'],
+        ['script', 'tag'],
+        [' ', ''],
+        ['lang', 'attr'],
+        ['=', 'pun'],
+        ['"ts"', 'str'],
+        ['>', 'pun']
+      ],
+      [
+        ['  import', 'key'],
+        [' { ', 'pun'],
+        ['NumericFormat', 'fn'],
+        [', ', 'pun'],
+        ['NumberFormatStyle', 'fn'],
+        [' } ', 'pun'],
+        ['from', 'key'],
+        [' ', ''],
+        ["'svelte-number-format'", 'str']
+      ],
+      [],
+      [
+        ['  let', 'key'],
+        [' price ', ''],
+        ['= ', 'pun'],
+        ['$state', 'fn'],
+        ['<', 'pun'],
+        ['number', 'tag'],
+        [' | ', 'pun'],
+        ['null', 'key'],
+        ['>(', 'pun'],
+        ['99.99', 'num'],
+        [')', 'pun']
+      ],
+      [
+        ['<', 'pun'],
+        ['/script>', 'tag']
+      ],
+      [],
+      [
+        ['<', 'pun'],
+        ['NumericFormat', 'tag']
+      ],
+      [
+        ['  ', ''],
+        ['bind:value', 'attr'],
+        ['=', 'pun'],
+        ['{', 'pun'],
+        ['price', 'fn'],
+        ['}', 'pun']
+      ],
+      [
+        ['  ', ''],
+        ['locale', 'attr'],
+        ['=', 'pun'],
+        ['"en-US"', 'str']
+      ],
+      [
+        ['  ', ''],
+        ['options', 'attr'],
+        ['=', 'pun'],
+        ['{{', 'pun']
+      ],
+      [
+        ['    formatStyle: ', ''],
+        ['NumberFormatStyle', 'fn'],
+        ['.', 'pun'],
+        ['Currency', 'tag'],
+        [',', 'pun']
+      ],
+      [
+        ['    currency: ', ''],
+        ["'USD'", 'str'],
+        [', precision: ', 'pun'],
+        ['2', 'num']
+      ],
+      [['  }}', 'pun']],
+      [['/>', 'pun']],
+      [['<!-- User sees: $99.99 -->', 'com']]
+    ]
+  }
 
-  $effect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-    localStorage.setItem('darkMode', String(darkMode))
-  })
-
-  const today = new Date()
-  const issueLabel = `${today.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${today.getFullYear()}`
-
-  function handleValueChange(values: NumberFormatValues) {
-    lastValueChange = values
+  const codePhone: { file: string; raw: string; lines: CodeLine[] } = {
+    file: 'Phone.svelte',
+    raw: [
+      '<script lang="ts">',
+      "  import { PatternFormat, MaskPatterns } from 'svelte-number-format'",
+      '',
+      '  let phone = $state<string | null>(null)',
+      '<' + '/script>',
+      '',
+      '<PatternFormat',
+      '  bind:value={phone}',
+      '  format={MaskPatterns.PHONE_US}',
+      '  placeholder="(555) 123-4567"',
+      '/>',
+      '<!-- Display: (555) 123-4567 · raw: "5551234567" -->'
+    ].join('\n'),
+    lines: [
+      [
+        ['<', 'pun'],
+        ['script', 'tag'],
+        [' ', ''],
+        ['lang', 'attr'],
+        ['=', 'pun'],
+        ['"ts"', 'str'],
+        ['>', 'pun']
+      ],
+      [
+        ['  import', 'key'],
+        [' { ', 'pun'],
+        ['PatternFormat', 'fn'],
+        [', ', 'pun'],
+        ['MaskPatterns', 'fn'],
+        [' } ', 'pun'],
+        ['from', 'key'],
+        [' ', ''],
+        ["'svelte-number-format'", 'str']
+      ],
+      [],
+      [
+        ['  let', 'key'],
+        [' phone ', ''],
+        ['= ', 'pun'],
+        ['$state', 'fn'],
+        ['<', 'pun'],
+        ['string', 'tag'],
+        [' | ', 'pun'],
+        ['null', 'key'],
+        ['>(', 'pun'],
+        ['null', 'key'],
+        [')', 'pun']
+      ],
+      [
+        ['<', 'pun'],
+        ['/script>', 'tag']
+      ],
+      [],
+      [
+        ['<', 'pun'],
+        ['PatternFormat', 'tag']
+      ],
+      [
+        ['  ', ''],
+        ['bind:value', 'attr'],
+        ['=', 'pun'],
+        ['{', 'pun'],
+        ['phone', 'fn'],
+        ['}', 'pun']
+      ],
+      [
+        ['  ', ''],
+        ['format', 'attr'],
+        ['=', 'pun'],
+        ['{', 'pun'],
+        ['MaskPatterns', 'fn'],
+        ['.', 'pun'],
+        ['PHONE_US', 'tag'],
+        ['}', 'pun']
+      ],
+      [
+        ['  ', ''],
+        ['placeholder', 'attr'],
+        ['=', 'pun'],
+        ['"(555) 123-4567"', 'str']
+      ],
+      [['/>', 'pun']],
+      [['<!-- Display: (555) 123-4567 · raw: "5551234567" -->', 'com']]
+    ]
   }
 </script>
 
 <svelte:head>
-  <title>svelte-number-format · specimen sheet</title>
+  <title>svelte-number-format — Numbers, formatted right.</title>
+  <meta
+    name="description"
+    content="A reactive input component library for Svelte 5 with caret-stable formatting, two-way binding, and Intl-grade locale support."
+  />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"
@@ -73,1458 +526,1870 @@
     crossorigin="anonymous"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=JetBrains+Mono:wght@300;400;500;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
 
-<div class="sheet">
-  <div class="grain" aria-hidden="true"></div>
-
-  <header class="hero">
-    <div class="hero-top">
-      <div class="dateline">
-        <span class="dateline-part">SVF — 01</span>
-        <span class="dateline-sep">·</span>
-        <span class="dateline-part">VOL I</span>
-        <span class="dateline-sep">·</span>
-        <span class="dateline-part">{issueLabel}</span>
-        <span class="dateline-sep">·</span>
-        <span class="dateline-part">A SPECIMEN SHEET</span>
-      </div>
-
-      <button
-        type="button"
-        class="mode-toggle"
-        onclick={() => (darkMode = !darkMode)}
-        aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        <span class="mode-toggle-label">
-          {darkMode ? 'NIGHT EDITION' : 'DAY EDITION'}
-        </span>
-        <span class="mode-toggle-dot" aria-hidden="true"></span>
-      </button>
-    </div>
-
-    <div class="hero-body">
-      <h1 class="wordmark">
-        <span class="wordmark-line">svelte<span class="dash">-</span></span>
-        <span class="wordmark-line">number<span class="dash">-</span></span>
-        <span class="wordmark-line">
-          format
-          <sup class="wordmark-sup">v1.2</sup>
-        </span>
-      </h1>
-
-      <div class="hero-lede">
-        <p class="strapline">
-          Two inputs, two readouts, and a Swiss-army knife of mask tokens.
-          <em
-            >Locale-aware formatting, pattern masking, caret stability, paste
-            handling, a11y, SSR.</em
-          >
-          <span class="svelte-mark">Svelte 5 only.</span>
-        </p>
-
-        <p class="standfirst-p">
-          <span class="drop">T</span>he quiet library you reach for when the
-          field has to be <em>correct</em>. A phone number that rewrites as you
-          type. A currency amount that respects its locale. A social security
-          number that paste-cleans itself. Two components do the work, two
-          components render the result. The whole thing ships under four
-          kilobytes gzipped.
-        </p>
-      </div>
+<div class="page">
+  <!-- ── Nav ─────────────────────────────────────────────────────────────── -->
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="#top" class="brand">
+        <span class="brand-mark">#</span>
+        <span>svelte-number-format</span>
+      </a>
+      <span class="nav-version mono">v{VERSION}</span>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="nav-link" href="#features">Features</a>
+        <a class="nav-link" href="#numeric">Numeric</a>
+        <a class="nav-link" href="#pattern">Pattern</a>
+        <a class="nav-link" href="#locales">Locales</a>
+        <a class="nav-link" href="#install">Install</a>
+        <button
+          type="button"
+          class="icon-btn"
+          onclick={() => (dark = !dark)}
+          aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+          title="Toggle theme"
+        >
+          {#if dark}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              />
+            </svg>
+          {:else}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          {/if}
+        </button>
+      </nav>
     </div>
   </header>
 
-  <!-- §01 — NUMERIC SPECIMENS -->
-  <section class="specimens">
-    <header class="section-head">
-      <span class="section-no">§ 01</span>
-      <h2 class="section-title">Numeric specimens</h2>
-      <span class="section-rule" aria-hidden="true"></span>
-      <span class="section-desc">
-        Locale-aware via <code>Intl.NumberFormat</code>
-      </span>
-    </header>
+  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <section class="hero" id="top">
+    <div class="container">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            Svelte 5 · v{VERSION} · MIT
+          </span>
+          <h1 class="hero-title">
+            Numbers,<br />formatted <em>right.</em>
+          </h1>
+          <p class="hero-sub">
+            A reactive input component library for Svelte 5 with caret-stable
+            formatting, two-way binding, and Intl-grade locale support. Two
+            components, fifteen masks, zero glue code.
+          </p>
+          <div class="hero-actions">
+            <div class="install" role="group" aria-label="Install command">
+              <code class="install-cmd"
+                ><span class="pf">$ </span>npm i svelte-number-format</code
+              >
+              <button
+                class="install-copy"
+                class:copied={copiedKey === 'hero-install'}
+                onclick={() =>
+                  copy('hero-install', 'npm i svelte-number-format')}
+                aria-label="Copy install command"
+                >{copiedKey === 'hero-install' ? 'COPIED' : 'COPY'}</button
+              >
+            </div>
+            <a href="#install" class="btn btn-primary">
+              Quick start
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg
+              >
+            </a>
+            <a
+              href="https://github.com/pitis/svelte-number-format"
+              class="btn btn-ghost"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                ><path
+                  d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.55v-2.13c-3.2.7-3.87-1.36-3.87-1.36-.52-1.34-1.27-1.7-1.27-1.7-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.16 1.18a10.95 10.95 0 0 1 5.75 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+                /></svg
+              >
+              GitHub
+            </a>
+          </div>
+        </div>
 
-    <div class="spec-grid">
-      <article class="spec spec--half" style="--delay: 0ms">
-        <div class="spec-meta">
-          <span class="serial">No. 01</span>
-          <span class="tag">PLAIN · PRECISION 2</span>
-        </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={amountBasic}
-            options={{ precision: 2 }}
-            placeholder="0.00"
-            aria-label="Plain numeric input"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <span class="readout-label">bound value</span>
-          <code class="readout-code">{amountBasic ?? 'null'}</code>
-        </div>
-      </article>
+        <!-- Live playground -->
+        <div class="playground" aria-label="Live playground">
+          <div class="pg-tabs" role="tablist" aria-label="Playground demos">
+            {#each [{ id: 'currency', label: 'Currency', kind: 'NUM' }, { id: 'percent', label: 'Percent', kind: 'NUM' }, { id: 'decimal', label: 'Decimal', kind: 'NUM' }, { id: 'phone', label: 'Phone', kind: 'PAT' }, { id: 'card', label: 'Card', kind: 'PAT' }] as t (t.id)}
+              <button
+                role="tab"
+                aria-selected={pgTab === t.id}
+                class="pg-tab"
+                onclick={() => (pgTab = t.id as PgTab)}
+              >
+                {t.label}<span class="badge">{t.kind}</span>
+              </button>
+            {/each}
+          </div>
 
-      <article class="spec spec--quarter" style="--delay: 60ms">
-        <div class="spec-meta">
-          <span class="serial">No. 02</span>
-          <span class="tag">USD · en-US</span>
-        </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={priceCurrency}
-            locale="en-US"
-            options={{
-              formatStyle: NumberFormatStyle.Currency,
-              currency: 'USD',
-              precision: 2
-            }}
-            placeholder="$0.00"
-            aria-label="USD price"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{priceCurrency ?? 'null'}</code>
-        </div>
-      </article>
+          <div class="pg-body">
+            <div class="pg-input-row">
+              <div class="pg-label">
+                <span>{pgIsNumeric ? 'NumericFormat' : 'PatternFormat'}</span>
+                <span>{pgIsNumeric ? `${pgLocale} · ${pgTab}` : pgPattern}</span
+                >
+              </div>
 
-      <article class="spec spec--quarter" style="--delay: 120ms">
-        <div class="spec-meta">
-          <span class="serial">No. 03</span>
-          <span class="tag">EUR · de-DE</span>
-        </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={euroAmount}
-            locale="de-DE"
-            options={{
-              formatStyle: NumberFormatStyle.Currency,
-              currency: 'EUR',
-              precision: 2
-            }}
-            placeholder="0,00 €"
-            aria-label="EUR price"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{euroAmount ?? 'null'}</code>
-        </div>
-      </article>
+              {#if pgTab === 'currency'}
+                <NumericFormat
+                  class="pg-input"
+                  bind:value={pgCurrency}
+                  locale={pgLocale}
+                  options={{
+                    formatStyle: NumberFormatStyle.Currency,
+                    currency: pgCurrencyCode,
+                    precision: pgPrecision
+                  }}
+                  placeholder="Enter a number"
+                  aria-label="Currency input"
+                />
+              {:else if pgTab === 'percent'}
+                <NumericFormat
+                  class="pg-input"
+                  bind:value={pgPercent}
+                  locale={pgLocale}
+                  options={{
+                    formatStyle: NumberFormatStyle.Percent,
+                    precision: pgPrecision
+                  }}
+                  placeholder="Enter a number"
+                  aria-label="Percent input"
+                />
+              {:else if pgTab === 'decimal'}
+                <NumericFormat
+                  class="pg-input"
+                  bind:value={pgDecimal}
+                  locale={pgLocale}
+                  options={{
+                    formatStyle: NumberFormatStyle.Decimal,
+                    precision: pgPrecision
+                  }}
+                  placeholder="Enter a number"
+                  aria-label="Decimal input"
+                />
+              {:else if pgTab === 'phone'}
+                <PatternFormat
+                  class="pg-input"
+                  bind:value={pgPhone}
+                  format={MaskPatterns.PHONE_US}
+                  placeholder={MaskPatterns.PHONE_US}
+                  aria-label="Phone input"
+                />
+              {:else}
+                <PatternFormat
+                  class="pg-input"
+                  bind:value={pgCard}
+                  format={MaskPatterns.CREDIT_CARD}
+                  placeholder={MaskPatterns.CREDIT_CARD}
+                  aria-label="Credit card input"
+                />
+              {/if}
+            </div>
 
-      <article class="spec spec--quarter" style="--delay: 180ms">
-        <div class="spec-meta">
-          <span class="serial">No. 04</span>
-          <span class="tag">PERCENT · 0–1</span>
-        </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={percentage}
-            locale="en-US"
-            options={{
-              formatStyle: NumberFormatStyle.Percent,
-              precision: 2
-            }}
-            placeholder="0%"
-            aria-label="Percentage"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{percentage ?? 'null'}</code>
-          <span class="readout-aside">stored as decimal</span>
-        </div>
-      </article>
+            <div class="pg-readout">
+              <span>display <b>{pgFormatted || '—'}</b></span>
+              <span
+                >raw <b>{pgRaw == null || pgRaw === '' ? '—' : pgRaw}</b></span
+              >
+            </div>
 
-      <article class="spec spec--quarter" style="--delay: 240ms">
-        <div class="spec-meta">
-          <span class="serial">No. 05</span>
-          <span class="tag">RANGE · 0–1000</span>
-        </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={amountWithRange}
-            options={{
-              precision: 2,
-              valueRange: { min: 0, max: 1000 }
-            }}
-            placeholder="0.00"
-            aria-label="Ranged amount"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{amountWithRange ?? 'null'}</code>
-          <span class="readout-aside">clamped on blur</span>
-        </div>
-      </article>
+            <div class="pg-presets">
+              {#each pgPresets as p (p.label)}
+                <button class="pg-preset" onclick={p.apply}>{p.label}</button>
+              {/each}
+            </div>
 
-      <article class="spec spec--half" style="--delay: 300ms">
-        <div class="spec-meta">
-          <span class="serial">No. 06</span>
-          <span class="tag">AUTO-DECIMAL</span>
+            {#if pgIsNumeric}
+              <div class="pg-controls">
+                <div class="pg-ctl">
+                  <span class="pg-label"><span>locale</span></span>
+                  <select class="pg-select" bind:value={pgLocale}>
+                    <option value="en-US">en-US</option>
+                    <option value="de-DE">de-DE</option>
+                    <option value="fr-FR">fr-FR</option>
+                    <option value="ja-JP">ja-JP</option>
+                    <option value="hi-IN">hi-IN</option>
+                    <option value="pt-BR">pt-BR</option>
+                  </select>
+                </div>
+                {#if pgTab === 'currency'}
+                  <div class="pg-ctl">
+                    <span class="pg-label"><span>currency</span></span>
+                    <select class="pg-select" bind:value={pgCurrencyCode}>
+                      <option>USD</option>
+                      <option>EUR</option>
+                      <option>GBP</option>
+                      <option>JPY</option>
+                      <option>BRL</option>
+                      <option>INR</option>
+                    </select>
+                  </div>
+                  <div class="pg-ctl pg-ctl-full">
+                    <span class="pg-label"><span>precision</span></span>
+                    <div class="pg-segment" role="group">
+                      {#each [0, 1, 2, 3, 4] as p (p)}
+                        <button
+                          aria-pressed={pgPrecision === p}
+                          onclick={() => (pgPrecision = p)}>{p}</button
+                        >
+                      {/each}
+                    </div>
+                  </div>
+                {:else}
+                  <div class="pg-ctl">
+                    <span class="pg-label"><span>precision</span></span>
+                    <div class="pg-segment" role="group">
+                      {#each [0, 1, 2, 3, 4] as p (p)}
+                        <button
+                          aria-pressed={pgPrecision === p}
+                          onclick={() => (pgPrecision = p)}>{p}</button
+                        >
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
         </div>
-        <div class="spec-field">
-          <NumericFormat
-            bind:value={priceAutoDecimal}
-            options={{
-              precision: 2,
-              autoDecimalDigits: true
-            }}
-            placeholder="type 1234 → 12.34"
-            aria-label="Auto decimal"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{priceAutoDecimal ?? 'null'}</code>
-        </div>
-      </article>
+      </div>
 
-      <article class="spec spec--full" style="--delay: 360ms">
-        <div class="spec-meta">
-          <span class="serial">No. 07</span>
-          <span class="tag">onValueChange — rich payload</span>
+      <!-- Stats strip -->
+      <div class="stats">
+        <div class="stats-row">
+          <div class="stat">
+            <div class="num">~8 KB</div>
+            <div class="lbl">Bundle size · gzipped</div>
+          </div>
+          <div class="stat">
+            <div class="num">4</div>
+            <div class="lbl">Components</div>
+          </div>
+          <div class="stat">
+            <div class="num">15+</div>
+            <div class="lbl">Mask patterns</div>
+          </div>
+          <div class="stat">
+            <div class="num">200+</div>
+            <div class="lbl">Locales · Intl</div>
+          </div>
         </div>
-        <div class="spec-field">
-          <NumericFormat
-            value={1999.99}
-            options={{
-              formatStyle: NumberFormatStyle.Currency,
-              currency: 'USD',
-              precision: 2
-            }}
-            onValueChange={handleValueChange}
-            aria-label="Payload demo"
-            class="num-input"
-          />
-        </div>
-        <table class="payload">
-          <tbody>
-            <tr>
-              <th>floatValue</th>
-              <td>
-                <code>
-                  {lastValueChange?.floatValue ?? '—'}
-                </code>
-              </td>
-            </tr>
-            <tr>
-              <th>formattedValue</th>
-              <td>
-                <code>{lastValueChange?.formattedValue || '—'}</code>
-              </td>
-            </tr>
-            <tr>
-              <th>value</th>
-              <td>
-                <code>{lastValueChange?.value || '—'}</code>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </article>
+      </div>
     </div>
   </section>
 
-  <!-- §02 — PATTERN SPECIMENS -->
-  <section class="specimens">
-    <header class="section-head">
-      <span class="section-no">§ 02</span>
-      <h2 class="section-title">Pattern specimens</h2>
-      <span class="section-rule" aria-hidden="true"></span>
-      <span class="section-desc">
-        Mask tokens: <code>#</code> digit · <code>A</code> letter ·
-        <code>*</code> alphanumeric
-      </span>
-    </header>
-
-    <div class="spec-grid">
-      <article class="spec" style="--delay: 0ms">
-        <div class="spec-meta">
-          <span class="serial">No. 08</span>
-          <span class="tag">US PHONE · try pasting</span>
+  <!-- ── Features ────────────────────────────────────────────────────────── -->
+  <section class="block" id="features">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">Features</div>
+          <h2 class="section-title">
+            Everything you need from a number input. Nothing you don't.
+          </h2>
         </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={phoneNumber}
-            format={MaskPatterns.PHONE_US}
-            placeholder="(···) ···-····"
-            aria-label="US phone number"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{phoneNumber ?? 'null'}</code>
-          <span class="readout-aside">(###) ###-####</span>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 60ms">
-        <div class="spec-meta">
-          <span class="serial">No. 09</span>
-          <span class="tag">INTL PHONE</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={phoneInternational}
-            format={MaskPatterns.PHONE_INTERNATIONAL}
-            aria-label="International phone"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{phoneInternational ?? 'null'}</code>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 120ms">
-        <div class="spec-meta">
-          <span class="serial">No. 10</span>
-          <span class="tag">CARD · generic</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={creditCard}
-            format={MaskPatterns.CREDIT_CARD}
-            aria-label="Credit card number"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{creditCard ?? 'null'}</code>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 180ms">
-        <div class="spec-meta">
-          <span class="serial">No. 11</span>
-          <span class="tag">DATE · MM/DD/YYYY</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={dateInput}
-            format={MaskPatterns.DATE_US}
-            aria-label="US date"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{dateInput ?? 'null'}</code>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 240ms">
-        <div class="spec-meta">
-          <span class="serial">No. 12</span>
-          <span class="tag">SSN</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={ssnInput}
-            format={MaskPatterns.SSN}
-            aria-label="Social security"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{ssnInput ?? 'null'}</code>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 300ms">
-        <div class="spec-meta">
-          <span class="serial">No. 13</span>
-          <span class="tag">CUSTOM · hex colour</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={hexColor}
-            format="HHHHHH"
-            customPatterns={{ H: /[0-9a-fA-F]/ }}
-            placeholder="ff00aa"
-            aria-label="Hex colour"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout spec-readout--swatch">
-          <span
-            class="swatch"
-            style="background: {hexColor && hexColor.length === 6
-              ? '#' + hexColor
-              : 'transparent'}"
-            aria-hidden="true"
-          ></span>
-          <code class="readout-code">
-            {hexColor ? '#' + hexColor : 'null'}
-          </code>
-        </div>
-      </article>
-
-      <article class="spec" style="--delay: 360ms">
-        <div class="spec-meta">
-          <span class="serial">No. 14</span>
-          <span class="tag">CUSTOM · binary</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={binaryInput}
-            format="BBBB BBBB"
-            customPatterns={{ B: /[01]/ }}
-            placeholder="0000 0000"
-            aria-label="Binary byte"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{binaryInput ?? 'null'}</code>
-          <span class="readout-aside">
-            {binaryInput && binaryInput.length === 8
-              ? 'dec ' + parseInt(binaryInput, 2)
-              : ''}
-          </span>
-        </div>
-      </article>
-
-      <article class="spec spec--twothirds" style="--delay: 420ms">
-        <div class="spec-meta">
-          <span class="serial">No. 15</span>
-          <span class="tag">allowEmptyFormatting · skeleton before typing</span>
-        </div>
-        <div class="spec-field">
-          <PatternFormat
-            bind:value={phoneAllowEmpty}
-            format={MaskPatterns.PHONE_US}
-            allowEmptyFormatting
-            aria-label="Phone with skeleton"
-            class="num-input"
-          />
-        </div>
-        <div class="spec-readout">
-          <span class="readout-arrow">↳</span>
-          <code class="readout-code">{phoneAllowEmpty ?? 'null'}</code>
-          <span class="readout-aside">
-            caret lands at first fillable slot on focus
-          </span>
-        </div>
-      </article>
-    </div>
-  </section>
-
-  <!-- §03 — DISPLAY SPECIMENS -->
-  <section class="specimens">
-    <header class="section-head">
-      <span class="section-no">§ 03</span>
-      <h2 class="section-title">Read-only displays</h2>
-      <span class="section-rule" aria-hidden="true"></span>
-      <span class="section-desc">
-        <code>NumericText</code> and <code>PatternText</code> — no input, just render
-      </span>
-    </header>
-
-    <table class="ledger">
-      <thead>
-        <tr>
-          <th class="col-label">Line item</th>
-          <th class="col-money">Amount (locale)</th>
-          <th class="col-raw">Raw</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each displayTableRows as row, i (row.label)}
-          <tr style="--delay: {i * 50}ms">
-            <td class="col-label">{row.label}</td>
-            <td class="col-money">
-              <NumericText
-                value={row.value}
-                locale={row.locale ?? 'en-US'}
-                options={{
-                  formatStyle: NumberFormatStyle.Currency,
-                  currency: row.currency,
-                  precision: row.currency === 'JPY' ? 0 : 2
-                }}
-              />
-            </td>
-            <td class="col-raw"><code>{row.value}</code></td>
-          </tr>
+        <p class="section-lead">
+          Four components — <code class="mono">NumericFormat</code>,
+          <code class="mono">PatternFormat</code>,
+          <code class="mono">NumericText</code>, and
+          <code class="mono">PatternText</code> — cover the entire surface. The rest
+          is just options.
+        </p>
+      </div>
+      <div class="features">
+        {#each features as f (f.num)}
+          <article class="feat">
+            <div class="feat-num mono">{f.num}</div>
+            <h3 class="feat-title">{f.title}</h3>
+            <p class="feat-desc">{f.desc}</p>
+            <div class="feat-glyph mono">{f.glyph}</div>
+          </article>
         {/each}
-        <tr class="ledger-divider">
-          <td colspan="3"></td>
-        </tr>
-        <tr>
-          <td class="col-label">
-            Phone <em>— PatternText</em>
-          </td>
-          <td class="col-money col-money--left">
-            <PatternText
-              value={phoneNumber}
-              format={MaskPatterns.PHONE_US}
-              fallback="—"
-            />
-          </td>
-          <td class="col-raw">
-            <code>{phoneNumber ?? 'null'}</code>
-          </td>
-        </tr>
-        <tr>
-          <td class="col-label">
-            Date <em>— PatternText</em>
-          </td>
-          <td class="col-money col-money--left">
-            <PatternText
-              value={dateInput}
-              format={MaskPatterns.DATE_US}
-              fallback="—"
-            />
-          </td>
-          <td class="col-raw"><code>{dateInput ?? 'null'}</code></td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- §04 — INSTALLATION / CODE -->
-  <section class="specimens">
-    <header class="section-head">
-      <span class="section-no">§ 04</span>
-      <h2 class="section-title">Bring your own typography</h2>
-      <span class="section-rule" aria-hidden="true"></span>
-      <span class="section-desc">
-        Four lines of npm, one import, one component
-      </span>
-    </header>
-
-    <div class="code-grid">
-      <div class="code-block">
-        <div class="code-label">install</div>
-        <pre><code>npm install svelte-number-format</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-label">import (tree-shaken subpath)</div>
-        <pre><code
-            >import &#123; NumericFormat &#125; from 'svelte-number-format/numeric'
-import &#123; PatternFormat &#125; from 'svelte-number-format/pattern'</code
-          ></pre>
-      </div>
-      <div class="code-block code-block--wide">
-        <div class="code-label">use</div>
-        <pre><code
-            >&lt;NumericFormat
-  bind:value=&#123;amount&#125;
-  locale="en-US"
-  options=&#123;&#123;
-    formatStyle: NumberFormatStyle.Currency,
-    currency: 'USD',
-    precision: 2
-  &#125;&#125;
-  onValueChange=&#123;(&#123; floatValue, formattedValue, value &#125;) =&gt; &#123;
-    /* react-number-format compatible payload */
-  &#125;&#125;
-/&gt;</code
-          ></pre>
       </div>
     </div>
   </section>
 
-  <footer class="colophon">
-    <div class="colophon-rule"></div>
-    <div class="colophon-grid">
-      <div class="colophon-cell">
-        <div class="colophon-key">SET IN</div>
-        <div class="colophon-val">
-          <em>Fraunces</em>, <em>Newsreader</em>, <em>JetBrains Mono</em>
+  <!-- ── Numeric showcase ────────────────────────────────────────────────── -->
+  <section class="block" id="numeric">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">NumericFormat</div>
+          <h2 class="section-title">
+            Three styles. Every locale. Zero glue code.
+          </h2>
+        </div>
+        <p class="section-lead">
+          Pass a <code class="mono">formatStyle</code>, pick a precision, bind a
+          value. The component takes care of grouping, separators, and currency
+          symbols.
+        </p>
+      </div>
+
+      <div class="showcase">
+        <article class="showcard">
+          <div class="showcard-hd">
+            <span class="name mono">Currency</span>
+            <span class="tag">USD</span>
+          </div>
+          <div class="showcard-body">
+            <NumericFormat
+              class="show-input"
+              bind:value={showCurrency}
+              locale="en-US"
+              options={{
+                formatStyle: NumberFormatStyle.Currency,
+                currency: 'USD',
+                precision: 2
+              }}
+            />
+          </div>
+          <div class="showcard-foot">
+            <span>raw</span>
+            <b class="tabular mono"
+              >{showCurrency == null ? 'null' : showCurrency}</b
+            >
+          </div>
+        </article>
+
+        <article class="showcard">
+          <div class="showcard-hd">
+            <span class="name mono">Percent</span>
+            <span class="tag">0–1</span>
+          </div>
+          <div class="showcard-body">
+            <NumericFormat
+              class="show-input"
+              bind:value={showPercent}
+              locale="en-US"
+              options={{
+                formatStyle: NumberFormatStyle.Percent,
+                precision: 2
+              }}
+            />
+          </div>
+          <div class="showcard-foot">
+            <span>raw</span>
+            <b class="tabular mono"
+              >{showPercent == null ? 'null' : showPercent}</b
+            >
+          </div>
+        </article>
+
+        <article class="showcard">
+          <div class="showcard-hd">
+            <span class="name mono">Decimal</span>
+            <span class="tag">en-US</span>
+          </div>
+          <div class="showcard-body">
+            <NumericFormat
+              class="show-input"
+              bind:value={showDecimal}
+              locale="en-US"
+              options={{
+                formatStyle: NumberFormatStyle.Decimal,
+                precision: 2
+              }}
+            />
+          </div>
+          <div class="showcard-foot">
+            <span>raw</span>
+            <b class="tabular mono"
+              >{showDecimal == null ? 'null' : showDecimal}</b
+            >
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pattern showcase ────────────────────────────────────────────────── -->
+  <section class="block" id="pattern">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">PatternFormat</div>
+          <h2 class="section-title">
+            Masks for the inputs you build over and over.
+          </h2>
+        </div>
+        <p class="section-lead">
+          <code class="mono">#</code> for digits,
+          <code class="mono">A</code> for letters,
+          <code class="mono">*</code> for alphanumerics, anything else literal.
+          15+ ready-made patterns from <code class="mono">MaskPatterns</code>.
+        </p>
+      </div>
+
+      <div class="showcase showcase-3x2">
+        {#each patternDemos as d (d.id)}
+          <article class="showcard">
+            <div class="showcard-hd">
+              <span class="name mono">{d.name}</span>
+              <span class="tag">{d.tag}</span>
+            </div>
+            <div class="showcard-body">
+              <PatternFormat
+                class="show-input"
+                bind:value={patternValues[d.id]}
+                format={d.pattern}
+                placeholder={d.pattern}
+              />
+            </div>
+            <div class="showcard-foot">
+              <span>format <b class="mono">{d.pattern}</b></span>
+              <span>raw <b class="mono">{patternValues[d.id] || '—'}</b></span>
+            </div>
+          </article>
+        {/each}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Locale gallery ──────────────────────────────────────────────────── -->
+  <section class="block" id="locales">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">Locales</div>
+          <h2 class="section-title">
+            One number. Eight locales. No string concatenation.
+          </h2>
+        </div>
+        <div class="gallery-controls">
+          <div class="pg-segment" role="group" aria-label="Format style">
+            {#each ['decimal', 'currency', 'percent'] as s (s)}
+              <button
+                aria-pressed={galleryStyle === s}
+                onclick={() => (galleryStyle = s as typeof galleryStyle)}
+                >{s}</button
+              >
+            {/each}
+          </div>
+          <NumericFormat
+            class="show-input gallery-input"
+            bind:value={galleryNumber}
+            locale="en-US"
+            options={{
+              formatStyle: NumberFormatStyle.Decimal,
+              precision: 2
+            }}
+          />
         </div>
       </div>
-      <div class="colophon-cell">
-        <div class="colophon-key">STACK</div>
-        <div class="colophon-val">Svelte 5 · Vite · Vitest · TypeScript</div>
+
+      <div class="locale-grid">
+        {#each locales as l (l.id)}
+          <button
+            class="loc"
+            aria-pressed={galleryActive === l.id}
+            onclick={() => (galleryActive = l.id)}
+          >
+            <div class="loc-flag">
+              <span>{l.id}</span>
+              <span class="loc-tag mono">{l.ccy}</span>
+            </div>
+            <div class="loc-value tabular">
+              <NumericText
+                value={galleryDisplayValue}
+                locale={l.id}
+                options={localeOptions(l.ccy)}
+                fallback="—"
+              />
+            </div>
+            <div class="loc-name">{l.name}</div>
+            <div class="loc-row mono">
+              <span>locale="{l.id}"</span><span aria-hidden="true">›</span>
+            </div>
+          </button>
+        {/each}
       </div>
-      <div class="colophon-cell">
-        <div class="colophon-key">LICENCE</div>
-        <div class="colophon-val">MIT · since 2023</div>
+    </div>
+  </section>
+
+  <!-- ── Code examples ───────────────────────────────────────────────────── -->
+  <section class="block" id="examples">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">Quick start</div>
+          <h2 class="section-title">Two imports. One bind. Done.</h2>
+        </div>
+        <p class="section-lead">
+          If you've used <code class="mono">react-number-format</code>, this
+          will feel immediately familiar — without the React.
+        </p>
       </div>
-      <div class="colophon-cell">
-        <div class="colophon-key">SOURCE</div>
-        <div class="colophon-val">
-          <a href="https://github.com/pitis/svelte-number-format">
-            github.com/pitis/svelte-number-format
+      <div class="examples-grid">
+        {#each [codeCurrency, codePhone] as ex (ex.file)}
+          <div class="code-shell">
+            <div class="code-shell-hd">
+              <div class="traffic" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <span class="file mono">{ex.file}</span>
+              <button
+                class="copy"
+                class:copied={copiedKey === ex.file}
+                onclick={() => copy(ex.file, ex.raw)}
+                aria-label={`Copy ${ex.file}`}
+                >{copiedKey === ex.file ? 'COPIED' : 'COPY'}</button
+              >
+            </div>
+            <pre
+              class="code"><!--
+              -->{#each ex.lines as line, i (i)}<span
+                  class="ln"
+                  ><!--
+                -->{#if line.length === 0}&nbsp;{:else}<!--
+                  -->{#each line as tok, j (j)}<!--
+                    -->{#if tok[1]}<span
+                          class="tk-{tok[1]}">{tok[0]}</span
+                        ><!--
+                    -->{:else}{tok[0]}{/if}<!--
+                  -->{/each}<!--
+                -->{/if}<!--
+              --></span
+                >{/each}</pre>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Install / CTA ───────────────────────────────────────────────────── -->
+  <section class="block" id="install">
+    <div class="container">
+      <div class="cta">
+        <div>
+          <div class="section-kicker">Install</div>
+          <h3>Add it to your Svelte 5 project.</h3>
+          <p>
+            MIT licensed. ~8 KB gzipped. Zero config.
+            <a
+              class="link"
+              href="https://github.com/pitis/svelte-number-format"
+              target="_blank"
+              rel="noopener noreferrer">Read the docs →</a
+            >
+          </p>
+          <!-- eslint-disable svelte/no-navigation-without-resolve -->
+          <p class="cta-demos">
+            Live integration demos:
+            <a href="{base}/demos/superforms/">Superforms</a>
+            ·
+            <a href="{base}/demos/formsnap/">Formsnap</a>
+            ·
+            <a href="{base}/demos/felte/">Felte</a>
+          </p>
+          <!-- eslint-enable svelte/no-navigation-without-resolve -->
+        </div>
+        <div class="cta-right">
+          <div class="pg-segment" role="group" aria-label="Package manager">
+            {#each ['npm', 'pnpm', 'yarn', 'bun'] as x (x)}
+              <button
+                aria-pressed={pkgManager === x}
+                onclick={() => (pkgManager = x as typeof pkgManager)}
+                >{x}</button
+              >
+            {/each}
+          </div>
+          <div class="install" role="group" aria-label="Install command">
+            <code class="install-cmd"
+              ><span class="pf">$ </span>{installCmd}</code
+            >
+            <button
+              class="install-copy"
+              class:copied={copiedKey === 'cta-install'}
+              onclick={() => copy('cta-install', installCmd)}
+              aria-label="Copy install command"
+              >{copiedKey === 'cta-install' ? 'COPIED' : 'COPY'}</button
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer class="foot">
+    <div class="container">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <a href="#top" class="brand">
+            <span class="brand-mark">#</span>
+            <span>svelte-number-format</span>
           </a>
+          <p>
+            A lightweight, reactive input component library for Svelte 5.
+            Inspired by react-number-format.
+          </p>
+        </div>
+        <div class="foot-col">
+          <h5>Package</h5>
+          <ul>
+            <li>
+              <a
+                href="https://www.npmjs.com/package/svelte-number-format"
+                target="_blank"
+                rel="noopener noreferrer">npm</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format"
+                target="_blank"
+                rel="noopener noreferrer">GitHub</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format/blob/main/README.md"
+                target="_blank"
+                rel="noopener noreferrer">Docs</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format/blob/main/CHANGELOG.md"
+                target="_blank"
+                rel="noopener noreferrer">Changelog</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="foot-col">
+          <h5>Components</h5>
+          <ul>
+            <li><a href="#numeric">NumericFormat</a></li>
+            <li><a href="#pattern">PatternFormat</a></li>
+            <li><a href="#locales">Locales</a></li>
+            <li><a href="#examples">Examples</a></li>
+          </ul>
+        </div>
+        <div class="foot-col">
+          <h5>Community</h5>
+          <ul>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format/issues"
+                target="_blank"
+                rel="noopener noreferrer">Issues</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format/discussions"
+                target="_blank"
+                rel="noopener noreferrer">Discussions</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/sponsors/pitis"
+                target="_blank"
+                rel="noopener noreferrer">Sponsor</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/pitis/svelte-number-format/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer">License</a
+              >
+            </li>
+          </ul>
         </div>
       </div>
+      <div class="foot-bottom mono">
+        <span>MIT · v{VERSION}</span>
+        <span>Made with Svelte 5 · built on intl-number-input</span>
+      </div>
     </div>
-    <div class="colophon-demos">
-      <span class="colophon-key">FORM-LIBRARY DEMOS</span>
-      <!-- eslint-disable svelte/no-navigation-without-resolve -->
-      <a href="demos/superforms/">Superforms</a>
-      <span class="colophon-sep">·</span>
-      <a href="demos/formsnap/">Formsnap</a>
-      <span class="colophon-sep">·</span>
-      <a href="demos/felte/">Felte</a>
-      <!-- eslint-enable svelte/no-navigation-without-resolve -->
-    </div>
-    <div class="colophon-stamp">— fin —</div>
   </footer>
 </div>
 
 <style>
   :global(:root) {
-    /* warm paper + ink */
-    --paper: #f1ede2;
-    --paper-shade: #e6e1d1;
-    --paper-rule: #191915;
-    --ink: #111111;
-    --ink-dim: #6a6355;
-    --ink-faint: #a39a86;
-    --signal: #d84315;
-    --signal-soft: #efd1c5;
-    --field-bg: #ffffff;
-    --field-rule: #111111;
+    --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+    --bg: #ffffff;
+    --bg-soft: #fafafa;
+    --bg-sunken: #f4f4f4;
+    --fg: #0a0a0a;
+    --fg-muted: #6b6b6b;
+    --fg-faint: #a3a3a3;
+    --line: rgba(10, 10, 10, 0.08);
+    --line-strong: rgba(10, 10, 10, 0.14);
+    --accent: #ff3e00;
+    --accent-soft: rgba(255, 62, 0, 0.08);
+
+    --radius: 10px;
+    --radius-lg: 14px;
   }
 
-  :global(html.dark) {
-    --paper: #111110;
-    --paper-shade: #1e1b17;
-    --paper-rule: #3a332a;
-    --ink: #f1ede2;
-    --ink-dim: #a69d89;
-    --ink-faint: #575142;
-    --signal: #ff6a3d;
-    --signal-soft: #3a2218;
-    --field-bg: #1b1a17;
-    --field-rule: #f1ede2;
+  :global(html[data-theme='dark']) {
+    --bg: #0a0a0a;
+    --bg-soft: #111111;
+    --bg-sunken: #161616;
+    --fg: #fafafa;
+    --fg-muted: #9a9a9a;
+    --fg-faint: #5a5a5a;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.14);
+    --accent-soft: rgba(255, 62, 0, 0.14);
   }
 
+  :global(*) {
+    box-sizing: border-box;
+  }
   :global(html),
   :global(body) {
     margin: 0;
     padding: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: 'Newsreader', Georgia, serif;
-    font-feature-settings:
-      'liga' 1,
-      'dlig' 1,
-      'kern' 1,
-      'onum' 1;
+  }
+  :global(body) {
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 15px;
+    line-height: 1.5;
     transition:
-      background-color 0.6s ease,
-      color 0.6s ease;
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
-
-  :global(code),
-  :global(pre) {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-feature-settings: 'tnum' 1;
+  :global(html) {
+    scroll-behavior: smooth;
   }
-
   :global(::selection) {
-    background: var(--signal);
-    color: var(--paper);
+    background: var(--accent);
+    color: #fff;
   }
 
-  .sheet {
-    position: relative;
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: clamp(1.5rem, 3vw, 3.5rem) clamp(1.25rem, 4vw, 4rem)
-      clamp(3rem, 6vw, 6rem);
+  .page {
+    background: var(--bg);
+    color: var(--fg);
     min-height: 100vh;
   }
 
-  .grain {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.04;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  .mono {
+    font-family: var(--font-mono);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
-  :global(html.dark) .grain {
-    mix-blend-mode: screen;
-    opacity: 0.06;
+  /* Top nav */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border-bottom: 1px solid var(--line);
   }
-
-  /* -------- HERO -------- */
-  .hero {
-    padding-top: 0.25rem;
-    padding-bottom: clamp(2rem, 4vw, 3rem);
-    margin-bottom: clamp(2rem, 5vw, 4rem);
-    border-bottom: 1.5px solid var(--paper-rule);
-  }
-
-  .hero-top {
-    display: grid;
-    grid-template-columns: 1fr auto;
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
     align-items: center;
-    gap: 1.5rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 0.5px solid var(--ink-faint);
-    margin-bottom: clamp(1.75rem, 4vw, 3rem);
+    gap: 24px;
   }
-
-  .dateline {
+  .brand {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.55rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    margin: 0;
-    animation: fadeUp 0.6s ease both;
-  }
-
-  .dateline-sep {
-    color: var(--ink-faint);
-  }
-
-  .hero-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: clamp(1.5rem, 5vw, 4rem);
-    align-items: start;
-  }
-
-  @media (max-width: 900px) {
-    .hero-body {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 1.75rem;
-    }
-  }
-
-  .wordmark {
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 420,
-      'SOFT' 60;
-    font-size: clamp(2.6rem, 7vw, 5.75rem);
-    line-height: 0.9;
-    letter-spacing: -0.04em;
-    margin: 0;
-    color: var(--ink);
-    display: flex;
-    flex-direction: column;
-    font-style: normal;
-  }
-
-  .wordmark-line {
-    display: block;
-    animation: fadeUp 0.8s ease both;
-  }
-
-  .wordmark-line:nth-child(1) {
-    animation-delay: 0.05s;
-  }
-  .wordmark-line:nth-child(2) {
-    animation-delay: 0.13s;
-  }
-  .wordmark-line:nth-child(3) {
-    animation-delay: 0.21s;
-  }
-
-  .wordmark-line:last-child {
-    color: var(--signal);
-    font-style: italic;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 420,
-      'SOFT' 100;
-  }
-
-  .dash {
-    color: var(--ink-faint);
-    font-style: normal;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 300,
-      'SOFT' 0;
-    margin: 0 -0.02em;
-  }
-
-  .wordmark-sup {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.14em;
-    letter-spacing: 0.06em;
-    font-weight: 400;
-    vertical-align: super;
-    margin-left: 0.3em;
-    top: -0.55em;
-    color: var(--ink-dim);
-    font-style: normal;
-  }
-
-  .hero-lede {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(1rem, 2vw, 1.5rem);
-    padding-top: 0.35rem;
-    max-width: 52ch;
-    animation: fadeUp 1s 0.3s ease both;
-  }
-
-  .strapline {
-    font-family: 'Newsreader', serif;
-    font-size: clamp(1.02rem, 1.3vw, 1.18rem);
-    line-height: 1.45;
-    color: var(--ink);
-    margin: 0;
-    font-weight: 350;
-  }
-
-  .strapline em {
-    font-style: italic;
-    color: var(--ink-dim);
-  }
-
-  .svelte-mark {
-    display: inline-block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72em;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--signal);
-    margin-left: 0.25em;
-    padding: 0.1em 0.5em;
-    border: 1px solid var(--signal);
-  }
-
-  .standfirst-p {
-    font-family: 'Newsreader', serif;
-    font-size: clamp(1.1rem, 1.6vw, 1.4rem);
-    line-height: 1.45;
-    color: var(--ink);
-    margin: 0;
-    font-weight: 300;
-    font-style: italic;
-    padding-top: 0.75rem;
-    border-top: 0.5px dotted var(--ink-faint);
-  }
-
-  .standfirst-p em {
-    color: var(--signal);
-    font-weight: 500;
-  }
-
-  .drop {
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 700,
-      'SOFT' 0;
-    font-size: 3.2em;
-    line-height: 0.85;
-    float: left;
-    margin: 0.08em 0.1em -0.12em 0;
-    color: var(--signal);
-    font-style: normal;
-  }
-
-  .mode-toggle {
-    display: inline-flex;
-    gap: 0.6rem;
     align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: inherit;
+    text-decoration: none;
+  }
+  .brand-mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--fg);
+    color: var(--bg);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .nav-version {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+  }
+  .nav-links {
+    display: flex;
+    gap: 22px;
+    margin-left: auto;
+    align-items: center;
+  }
+  .nav-link {
+    color: var(--fg-muted);
+    font-size: 13.5px;
+    transition: color 0.15s ease;
+    text-decoration: none;
+  }
+  .nav-link:hover {
+    color: var(--fg);
+  }
+  .icon-btn {
+    appearance: none;
     background: transparent;
-    border: 1px solid var(--paper-rule);
-    padding: 0.5rem 0.85rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink);
+    border: 1px solid var(--line);
+    color: var(--fg);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
     cursor: pointer;
     transition:
-      background 0.2s ease,
-      color 0.2s ease;
-    white-space: nowrap;
-    animation: fadeUp 0.7s 0.2s ease both;
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .icon-btn:hover {
+    background: var(--bg-soft);
+    border-color: var(--line-strong);
   }
 
-  .mode-toggle:hover {
-    background: var(--ink);
-    color: var(--paper);
+  /* Layout */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 28px;
   }
 
-  .mode-toggle-dot {
-    width: 8px;
-    height: 8px;
+  /* Hero */
+  .hero {
+    padding: 88px 0 72px;
+    position: relative;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 72px;
+    align-items: start;
+  }
+  @media (max-width: 940px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 48px;
+    }
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-soft);
+    margin-bottom: 22px;
+  }
+  .eyebrow .dot {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: var(--signal);
-    box-shadow: 0 0 0 3px var(--signal-soft);
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  h1.hero-title {
+    font-size: clamp(44px, 6.4vw, 76px);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  .hero-title em {
+    font-style: normal;
+    color: var(--fg-muted);
+  }
+  .hero-sub {
+    font-size: 18px;
+    color: var(--fg-muted);
+    max-width: 46ch;
+    margin: 0 0 32px;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
-  /* -------- SECTIONS -------- */
-  .specimens {
-    margin: clamp(3rem, 6vw, 5rem) 0;
+  .btn {
+    appearance: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 500;
+    font-size: 14px;
+    border: 1px solid transparent;
+    text-decoration: none;
+    transition:
+      transform 0.08s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn-primary {
+    background: var(--fg);
+    color: var(--bg);
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--fg) 88%, var(--accent));
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--fg);
+    border-color: var(--line-strong);
+  }
+  .btn-ghost:hover {
+    background: var(--bg-soft);
   }
 
-  .section-head {
-    display: grid;
-    grid-template-columns: auto auto 1fr auto;
-    gap: 1.2rem;
-    align-items: baseline;
-    padding-bottom: 1rem;
-    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  .install {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg-soft);
   }
-
-  .section-no {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.16em;
-    color: var(--signal);
-    text-transform: uppercase;
-  }
-
-  .section-title {
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 48,
-      'wght' 500,
-      'SOFT' 40;
-    font-size: clamp(1.5rem, 3vw, 2.25rem);
-    font-style: italic;
-    letter-spacing: -0.02em;
-    margin: 0;
-    color: var(--ink);
-  }
-
-  .section-rule {
-    height: 1px;
-    background: var(--paper-rule);
-    align-self: center;
-  }
-
-  .section-desc {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    text-align: right;
+  .install-cmd {
+    padding: 10px 14px;
+    color: var(--fg);
     white-space: nowrap;
   }
-
-  .section-desc code {
-    background: var(--signal-soft);
-    color: var(--signal);
-    padding: 0.1em 0.35em;
-    border-radius: 1px;
+  .install-cmd .pf {
+    color: var(--fg-faint);
+    user-select: none;
+  }
+  .install-copy {
+    appearance: none;
+    border: 0;
+    border-left: 1px solid var(--line);
+    background: transparent;
+    color: var(--fg-muted);
+    padding: 0 12px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
+  }
+  .install-copy:hover {
+    color: var(--fg);
+    background: var(--bg-sunken);
+  }
+  .install-copy.copied {
+    color: var(--accent);
   }
 
-  @media (max-width: 640px) {
-    .section-head {
-      grid-template-columns: auto 1fr;
-      row-gap: 0.35rem;
-    }
-    .section-title {
-      grid-column: 2;
-    }
-    .section-rule,
-    .section-desc {
-      display: none;
-    }
+  /* Hero playground */
+  .playground {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+    overflow: hidden;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      0 24px 60px -30px rgba(0, 0, 0, 0.35);
   }
-
-  /* -------- SPEC GRID -------- */
-  .spec-grid {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 1px;
-    background: var(--paper-rule);
-    border: 1px solid var(--paper-rule);
+  :global(html[data-theme='dark']) .playground {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      0 24px 60px -30px rgba(0, 0, 0, 0.7);
   }
-
-  .spec {
-    grid-column: span 4;
-    background: var(--paper);
-    padding: 1.5rem 1.4rem 1.4rem;
+  .pg-tabs {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    padding: 0 8px;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .pg-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1.5px solid transparent;
+    margin-bottom: -1px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .pg-tab:hover {
+    color: var(--fg);
+  }
+  .pg-tab[aria-selected='true'] {
+    color: var(--fg);
+    border-bottom-color: var(--accent);
+  }
+  .pg-tab .badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-sunken);
+    color: var(--fg-faint);
+    border: 1px solid var(--line);
+  }
+  .pg-body {
+    padding: 28px;
+  }
+  .pg-input-row {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    position: relative;
-    animation: fadeUp 0.7s calc(var(--delay, 0ms)) ease both;
+    gap: 8px;
   }
-
-  .spec--half {
-    grid-column: span 6;
-  }
-
-  .spec--quarter {
-    grid-column: span 3;
-  }
-
-  .spec--twothirds {
-    grid-column: span 8;
-  }
-
-  .spec--full {
-    grid-column: span 12;
-  }
-
-  @media (max-width: 900px) {
-    .spec,
-    .spec--half,
-    .spec--quarter,
-    .spec--twothirds {
-      grid-column: span 6;
-    }
-    .spec--full {
-      grid-column: span 12;
-    }
-  }
-
-  @media (max-width: 560px) {
-    .spec,
-    .spec--half,
-    .spec--quarter,
-    .spec--twothirds,
-    .spec--full {
-      grid-column: span 12;
-    }
-  }
-
-  .spec-meta {
+  .pg-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    gap: 1rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    align-items: center;
+    gap: 12px;
   }
-
-  .serial {
-    color: var(--signal);
-    font-weight: 500;
-  }
-
-  .tag {
-    color: var(--ink-dim);
-    text-align: right;
-  }
-
-  .spec-field {
-    margin: 0.25rem 0;
-  }
-
-  :global(.num-input) {
+  :global(.pg-input) {
+    appearance: none;
     width: 100%;
-    box-sizing: border-box;
-    display: block;
-    background: transparent;
-    border: 0;
-    border-bottom: 1.5px solid var(--field-rule);
-    padding: 0.6rem 0 0.55rem;
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 48,
-      'wght' 420,
-      'SOFT' 0;
-    font-feature-settings: 'tnum' 1;
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    letter-spacing: -0.01em;
-    color: var(--ink);
-    transition:
-      border-color 0.2s ease,
-      background 0.2s ease;
-    border-radius: 0;
-  }
-
-  :global(.num-input::placeholder) {
-    color: var(--ink-faint);
-    font-style: italic;
-    font-variation-settings:
-      'opsz' 48,
-      'wght' 300,
-      'SOFT' 80;
-  }
-
-  :global(.num-input:focus) {
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--fg);
     outline: none;
-    border-bottom-color: var(--signal);
+    font-variant-numeric: tabular-nums;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  :global(.pg-input:focus) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  :global(.pg-input::placeholder) {
+    color: var(--fg-faint);
   }
 
-  .spec-readout {
+  .pg-readout {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
     display: flex;
-    align-items: baseline;
-    gap: 0.55rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: var(--ink-dim);
-    border-top: 0.5px dotted var(--ink-faint);
-    padding-top: 0.75rem;
-    margin-top: auto;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--fg-muted);
   }
-
-  .readout-arrow {
-    color: var(--signal);
-    font-weight: 600;
-  }
-
-  .readout-label {
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-size: 0.68rem;
-    color: var(--ink-dim);
-  }
-
-  .readout-code {
-    color: var(--ink);
-    background: var(--paper-shade);
-    padding: 0.1em 0.5em;
-    font-size: 0.78rem;
-    word-break: break-all;
-  }
-
-  .readout-aside {
-    margin-left: auto;
-    font-style: italic;
-    font-family: 'Newsreader', serif;
-    font-size: 0.82rem;
-    color: var(--ink-faint);
-  }
-
-  .spec-readout--swatch .swatch {
-    display: inline-block;
-    width: 1.4rem;
-    height: 1.4rem;
-    border: 1px solid var(--paper-rule);
-    vertical-align: middle;
-    flex-shrink: 0;
-  }
-
-  /* payload table */
-  .payload {
-    width: 100%;
-    border-collapse: collapse;
-    border-top: 0.5px dotted var(--ink-faint);
-    margin-top: auto;
-    padding-top: 0.5rem;
-  }
-
-  .payload th,
-  .payload td {
-    padding: 0.35rem 0;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .payload th {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .pg-readout b {
+    color: var(--fg);
     font-weight: 500;
-    color: var(--ink-dim);
-    width: 10rem;
   }
 
-  .payload td code {
-    font-size: 0.82rem;
-    color: var(--ink);
-    background: var(--paper-shade);
-    padding: 0.1em 0.45em;
-    display: inline-block;
-    word-break: break-all;
-  }
-
-  /* -------- LEDGER -------- */
-  .ledger {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Newsreader', serif;
-    font-size: 1.05rem;
-  }
-
-  .ledger thead th {
-    text-align: left;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    padding: 0.5rem 1rem 0.75rem;
-    border-bottom: 1px solid var(--paper-rule);
-  }
-
-  .ledger tbody td {
-    padding: 0.85rem 1rem;
-    border-bottom: 0.5px dotted var(--ink-faint);
-    animation: fadeUp 0.6s calc(var(--delay, 0ms)) ease both;
-  }
-
-  .ledger .col-label {
-    color: var(--ink);
-    font-size: 1.15rem;
-  }
-
-  .ledger .col-label em {
-    font-style: italic;
-    color: var(--ink-dim);
-    font-size: 0.85em;
-  }
-
-  .col-money {
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 48,
-      'wght' 500,
-      'SOFT' 0;
-    font-feature-settings: 'tnum' 1;
-    font-size: 1.4rem;
-    color: var(--signal);
-    text-align: right;
-    letter-spacing: -0.01em;
-    width: 40%;
-  }
-
-  .col-money--left {
-    text-align: left;
-    color: var(--ink);
-  }
-
-  .col-raw {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.82rem;
-    color: var(--ink-dim);
-    text-align: right;
-    width: 25%;
-  }
-
-  .col-raw code {
-    background: var(--paper-shade);
-    padding: 0.1em 0.45em;
-  }
-
-  .ledger-divider td {
-    padding: 0;
-    height: 0.5rem;
-    border-bottom: none;
-    background: transparent;
-  }
-
-  @media (max-width: 640px) {
-    .col-money {
-      font-size: 1.1rem;
-    }
-    .ledger .col-label {
-      font-size: 1rem;
-    }
-    .ledger thead,
-    .col-raw {
-      display: none;
-    }
-    .ledger tbody td {
-      padding: 0.65rem 0.4rem;
-    }
-  }
-
-  /* -------- CODE BLOCKS -------- */
-  .code-grid {
+  .pg-controls {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 1px;
-    background: var(--paper-rule);
-    border: 1px solid var(--paper-rule);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .pg-ctl {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pg-ctl-full {
+    grid-column: 1 / -1;
+  }
+  .pg-select {
+    appearance: none;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    color: var(--fg);
+    outline: none;
+    cursor: pointer;
+  }
+  .pg-select:focus {
+    border-color: var(--line-strong);
   }
 
-  .code-block {
-    background: var(--paper);
-    padding: 1rem 1.25rem 1.25rem;
-    grid-column: span 6;
+  .pg-segment {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
   }
-
-  .code-block--wide {
-    grid-column: span 12;
-    background: #111110;
-    color: #f1ede2;
-  }
-
-  .code-block--wide .code-label {
-    color: var(--signal);
-  }
-
-  .code-block--wide pre code {
-    color: #f1ede2;
-  }
-
-  @media (max-width: 700px) {
-    .code-block {
-      grid-column: span 12;
-    }
-  }
-
-  .code-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    margin-bottom: 0.6rem;
-  }
-
-  pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  pre code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.86rem;
-    line-height: 1.55;
-    color: var(--ink);
+  .pg-segment button {
+    appearance: none;
+    border: 0;
     background: transparent;
-    padding: 0;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+  .pg-segment button:hover {
+    color: var(--fg);
+  }
+  .pg-segment button[aria-pressed='true'] {
+    background: var(--bg-sunken);
+    color: var(--fg);
   }
 
-  /* -------- COLOPHON -------- */
-  .colophon {
-    margin-top: clamp(3rem, 6vw, 5rem);
-    padding-top: clamp(2rem, 4vw, 3rem);
-    position: relative;
+  .pg-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .pg-preset {
+    appearance: none;
+    cursor: pointer;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .pg-preset:hover {
+    color: var(--fg);
+    border-color: var(--line-strong);
   }
 
-  .colophon-rule {
-    height: 1px;
-    background: var(--paper-rule);
-    margin-bottom: 2rem;
+  /* Stats strip */
+  .stats {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 24px 0;
+    margin-top: 64px;
   }
-
-  .colophon-grid {
+  .stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 3rem;
+    gap: 24px;
   }
-
-  @media (max-width: 780px) {
-    .colophon-grid {
+  @media (max-width: 760px) {
+    .stats-row {
       grid-template-columns: repeat(2, 1fr);
     }
   }
-
-  .colophon-key {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    letter-spacing: 0.14em;
+  .stat .num {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .lbl {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
     text-transform: uppercase;
-    color: var(--ink-dim);
-    margin-bottom: 0.4rem;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
   }
 
-  .colophon-val {
-    font-family: 'Newsreader', serif;
-    font-size: 0.95rem;
-    color: var(--ink);
+  /* Section heading */
+  section.block {
+    padding: 96px 0;
+    border-bottom: 1px solid var(--line);
   }
-
-  .colophon-val em {
-    font-style: italic;
+  section.block:last-of-type {
+    border-bottom: 0;
   }
-
-  .colophon-val a {
-    color: var(--signal);
-    text-decoration: none;
-    border-bottom: 0.5px solid var(--signal);
-    padding-bottom: 1px;
-  }
-
-  .colophon-val a:hover {
-    background: var(--signal);
-    color: var(--paper);
-    border-bottom-color: transparent;
-  }
-
-  .colophon-demos {
+  .section-head {
     display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 48px;
     flex-wrap: wrap;
-    gap: 0.5rem;
+  }
+  .section-kicker {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+    display: flex;
     align-items: center;
-    padding: 1rem 0 1.5rem;
-    border-top: 0.5px dotted var(--ink-faint);
-    margin-bottom: 1.5rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
+    gap: 8px;
+  }
+  .section-kicker::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 1px;
+    background: var(--fg-faint);
+  }
+  h2.section-title {
+    font-size: clamp(32px, 4vw, 48px);
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.05;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+  .section-lead {
+    color: var(--fg-muted);
+    font-size: 17px;
+    max-width: 38ch;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .section-lead code {
+    font-family: var(--font-mono);
   }
 
-  .colophon-demos .colophon-key {
-    margin-bottom: 0;
-    margin-right: 0.5rem;
+  /* Features grid */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-soft);
+  }
+  @media (max-width: 940px) {
+    .features {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 560px) {
+    .features {
+      grid-template-columns: 1fr;
+    }
+  }
+  .feat {
+    padding: 28px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: relative;
+  }
+  .feat:nth-child(4n) {
+    border-right: 0;
+  }
+  .features > .feat:nth-last-child(-n + 4) {
+    border-bottom: 0;
+  }
+  @media (max-width: 940px) {
+    .feat {
+      border-right: 1px solid var(--line) !important;
+      border-bottom: 1px solid var(--line) !important;
+    }
+    .feat:nth-child(2n) {
+      border-right: 0 !important;
+    }
+    .features > .feat:nth-last-child(-n + 2) {
+      border-bottom: 0 !important;
+    }
+  }
+  @media (max-width: 560px) {
+    .feat {
+      border-right: 0 !important;
+    }
+  }
+  .feat-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
+  }
+  .feat-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 16px 0 8px;
+  }
+  .feat-desc {
+    color: var(--fg-muted);
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .feat-glyph {
+    margin-top: 22px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--fg);
   }
 
-  .colophon-demos a {
-    color: var(--signal);
-    text-decoration: none;
-    border-bottom: 0.5px solid var(--signal);
-    padding-bottom: 1px;
+  /* Showcase rows */
+  .showcase {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .showcase-3x2 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 940px) {
+    .showcase {
+      grid-template-columns: 1fr;
+    }
+    .showcase-3x2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 560px) {
+    .showcase-3x2 {
+      grid-template-columns: 1fr;
+    }
+  }
+  .showcard {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .showcard-hd {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+  }
+  .showcard-hd .name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .showcard-hd .tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--fg-faint);
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .showcard-body {
+    padding: 22px 18px;
+  }
+  .showcard-foot {
+    margin-top: auto;
+    border-top: 1px solid var(--line);
+    padding: 12px 18px;
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .showcard-foot b {
+    color: var(--fg);
+    font-weight: 500;
+  }
+  :global(.show-input) {
+    appearance: none;
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--fg);
+    outline: none;
+    font-variant-numeric: tabular-nums;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  :global(.show-input:focus) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
-  .colophon-demos a:hover {
-    background: var(--signal);
-    color: var(--paper);
-    border-bottom-color: transparent;
+  /* Locale gallery */
+  .gallery-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  :global(.gallery-input) {
+    width: 280px !important;
+    max-width: 100%;
+  }
+  .locale-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  @media (max-width: 940px) {
+    .locale-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  .loc {
+    padding: 28px;
+    background: var(--bg-soft);
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    transition: background 0.15s ease;
+  }
+  .loc:hover {
+    background: var(--bg);
+  }
+  .loc[aria-pressed='true'] {
+    background: var(--bg);
+  }
+  .loc[aria-pressed='true'] .loc-tag {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .locale-grid > .loc:nth-child(4n) {
+    border-right: 0;
+  }
+  .locale-grid > .loc:nth-last-child(-n + 4) {
+    border-bottom: 0;
+  }
+  @media (max-width: 940px) {
+    .loc {
+      border-right: 1px solid var(--line) !important;
+      border-bottom: 1px solid var(--line) !important;
+    }
+    .loc:nth-child(2n) {
+      border-right: 0 !important;
+    }
+    .locale-grid > .loc:nth-last-child(-n + 2) {
+      border-bottom: 0 !important;
+    }
+  }
+  .loc-flag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .loc-tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    border: 1px solid var(--line);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--fg-faint);
+  }
+  .loc-value {
+    font-size: clamp(22px, 2.4vw, 30px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .loc-name {
+    font-size: 13px;
+    color: var(--fg-muted);
+  }
+  .loc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
   }
 
-  .colophon-sep {
-    color: var(--ink-faint);
+  /* Code block */
+  .code-shell {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+    overflow: hidden;
   }
-
-  .colophon-stamp {
-    text-align: center;
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 300,
-      'SOFT' 100;
+  .code-shell-hd {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-muted);
+  }
+  .code-shell-hd .traffic {
+    display: flex;
+    gap: 6px;
+  }
+  .code-shell-hd .traffic span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bg-sunken);
+    border: 1px solid var(--line);
+  }
+  .code-shell-hd .file {
+    color: var(--fg);
+  }
+  .code-shell-hd .copy {
+    margin-left: auto;
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .code-shell-hd .copy:hover {
+    color: var(--fg);
+    border-color: var(--line-strong);
+  }
+  .code-shell-hd .copy.copied {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  pre.code {
+    margin: 0;
+    padding: 22px 22px 22px 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    counter-reset: line;
+  }
+  pre.code .ln {
+    display: block;
+    padding-left: 60px;
+    position: relative;
+    white-space: pre;
+    min-height: 1.7em;
+  }
+  pre.code .ln::before {
+    counter-increment: line;
+    content: counter(line);
+    position: absolute;
+    left: 0;
+    width: 44px;
+    text-align: right;
+    padding-right: 14px;
+    color: var(--fg-faint);
+    font-size: 11.5px;
+    user-select: none;
+  }
+  pre.code :global(.tk-key) {
+    color: #af3df0;
+  }
+  pre.code :global(.tk-tag) {
+    color: #0f7c66;
+  }
+  pre.code :global(.tk-attr) {
+    color: #b14a00;
+  }
+  pre.code :global(.tk-str) {
+    color: #1a7e3e;
+  }
+  pre.code :global(.tk-num) {
+    color: #6b5dd0;
+  }
+  pre.code :global(.tk-com) {
+    color: var(--fg-faint);
     font-style: italic;
-    font-size: 1rem;
-    color: var(--ink-faint);
-    letter-spacing: 0.2em;
+  }
+  pre.code :global(.tk-fn) {
+    color: #1064c2;
+  }
+  pre.code :global(.tk-pun) {
+    color: var(--fg-muted);
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-key) {
+    color: #c594ff;
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-tag) {
+    color: #5fd9bf;
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-attr) {
+    color: #ffb86b;
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-str) {
+    color: #7adf95;
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-num) {
+    color: #a89dff;
+  }
+  :global(html[data-theme='dark']) pre.code :global(.tk-fn) {
+    color: #6cb8ff;
   }
 
-  /* -------- KEYFRAMES -------- */
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+  .examples-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 940px) {
+    .examples-grid {
+      grid-template-columns: 1fr;
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation: none !important;
-      transition: none !important;
+  /* CTA / install block */
+  .cta {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    padding: 56px 48px;
+    background: var(--bg-soft);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: center;
+  }
+  @media (max-width: 760px) {
+    .cta {
+      grid-template-columns: 1fr;
+      padding: 36px 28px;
     }
+  }
+  .cta h3 {
+    margin: 0 0 8px;
+    font-size: clamp(28px, 3.4vw, 40px);
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    line-height: 1.05;
+  }
+  .cta p {
+    margin: 0;
+    color: var(--fg-muted);
+  }
+  .cta .link {
+    color: var(--fg);
+    border-bottom: 1px solid var(--line-strong);
+    text-decoration: none;
+  }
+  .cta .link:hover {
+    border-bottom-color: var(--accent);
+  }
+  .cta-demos {
+    margin-top: 14px !important;
+    font-size: 13.5px;
+    font-family: var(--font-mono);
+  }
+  .cta-demos a {
+    color: var(--fg);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--line-strong);
+  }
+  .cta-demos a:hover {
+    border-bottom-color: var(--accent);
+  }
+  .cta-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  @media (max-width: 760px) {
+    .cta-right {
+      align-items: flex-start;
+    }
+  }
+
+  /* Footer */
+  footer.foot {
+    border-top: 1px solid var(--line);
+    padding: 56px 0 40px;
+    background: var(--bg);
+  }
+  .foot-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+  }
+  @media (max-width: 760px) {
+    .foot-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .foot-brand {
+    max-width: 32ch;
+  }
+  .foot-brand p {
+    color: var(--fg-muted);
+    margin: 12px 0 0;
+    font-size: 14px;
+  }
+  .foot-col h5 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-faint);
+    margin: 0 0 14px;
+    font-weight: 500;
+  }
+  .foot-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .foot-col a {
+    color: var(--fg-muted);
+    font-size: 13.5px;
+    text-decoration: none;
+  }
+  .foot-col a:hover {
+    color: var(--fg);
+  }
+  .foot-bottom {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-faint);
+    flex-wrap: wrap;
+    gap: 12px;
   }
 </style>

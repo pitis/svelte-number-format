@@ -6,3 +6,4 @@ yarn.lock
 dist
 node_modules
 .playwright-mcp
+design_handoff_landing_page
