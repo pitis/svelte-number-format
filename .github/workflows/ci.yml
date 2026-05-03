@@ -41,3 +41,6 @@ jobs:
 
       - name: Build library
         run: npm run package
+
+      - name: Check bundle size
+        run: npx size-limit
