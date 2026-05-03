@@ -1,0 +1,43 @@
+[
+  {
+    "name": "NumericFormat source (gzipped)",
+    "path": [
+      "dist/NumericFormat.svelte",
+      "dist/numeric.js",
+      "dist/internal/env.js",
+      "dist/internal/values.js"
+    ],
+    "gzip": true,
+    "limit": "6 KB"
+  },
+  {
+    "name": "PatternFormat source (gzipped)",
+    "path": [
+      "dist/PatternFormat.svelte",
+      "dist/pattern.js",
+      "dist/internal/cursor.js",
+      "dist/internal/inputmode.js",
+      "dist/internal/values.js"
+    ],
+    "gzip": true,
+    "limit": "6 KB"
+  },
+  {
+    "name": "NumericText source (gzipped)",
+    "path": ["dist/NumericText.svelte", "dist/internal/env.js"],
+    "gzip": true,
+    "limit": "3 KB"
+  },
+  {
+    "name": "PatternText source (gzipped)",
+    "path": ["dist/PatternText.svelte", "dist/internal/cursor.js"],
+    "gzip": true,
+    "limit": "3 KB"
+  },
+  {
+    "name": "MaskPatterns (gzipped)",
+    "path": "dist/patterns.js",
+    "gzip": true,
+    "limit": "1 KB"
+  }
+]
