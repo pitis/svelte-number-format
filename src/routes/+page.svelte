@@ -1390,6 +1390,14 @@
   .nav-link:hover {
     color: var(--fg);
   }
+  @media (max-width: 720px) {
+    .nav-link {
+      display: none;
+    }
+    .nav-version {
+      display: none;
+    }
+  }
   .icon-btn {
     appearance: none;
     background: transparent;
