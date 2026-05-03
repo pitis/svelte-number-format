@@ -19,9 +19,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
           cache: npm
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1.
+      # Node 22 still ships with npm 10.x, so upgrade explicitly.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: npm ci
@@ -29,10 +34,11 @@ jobs:
       - name: Sync SvelteKit
         run: npx svelte-kit sync
 
+      - name: Run tests
+        run: npm test
+
       - name: Build package
         run: npm run package
 
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ''

@@ -259,4 +259,52 @@ describe('NumericFormat.svelte', () => {
       expect(['decimal', 'numeric']).toContain(input.getAttribute('inputmode'))
     })
   })
+
+  describe('External value updates (regression: issue #14)', () => {
+    it('clears the input when value is set to null externally', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: {
+          value: 1234.56,
+          locale: 'en-US',
+          options: {
+            formatStyle: NumberFormatStyle.Currency,
+            currency: 'USD',
+            precision: 2
+          }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.value).toBe('$1,234.56')
+
+      await rerender({
+        value: null,
+        locale: 'en-US',
+        options: {
+          formatStyle: NumberFormatStyle.Currency,
+          currency: 'USD',
+          precision: 2
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.value).toBe('')
+    })
+
+    it('updates the input when value changes to a different number externally', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: { value: 100, options: { precision: 2 } }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.value).toBe('100.00')
+
+      await rerender({ value: 9999.5, options: { precision: 2 } })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.value).toBe('9,999.50')
+    })
+  })
 })
