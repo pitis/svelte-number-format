@@ -74,6 +74,7 @@ git commit --no-verify -m "your message"
 - `npm run lint` - Check code with ESLint and Prettier
 - `npm run check` - Run Svelte type checking
 - `npm run package` - Package the library for publishing
+- `npm run size` - Run size-limit to verify gzipped bundle sizes
 - `npm run deploy` - Deploy demo to GitHub Pages
 
 ## Testing
@@ -118,20 +119,55 @@ See [TESTING.md](./TESTING.md) for more details.
 
 ## Component Architecture
 
+The library exposes four components: two interactive inputs and two display-only
+spans. They share an internal toolkit under `src/lib/internal/`.
+
 ### NumericFormat
 
 - Located in `src/lib/NumericFormat.svelte`
-- Handles number formatting (currency, percentages, decimals)
+- Interactive input for numbers, currency, and percent
 - Built on `intl-number-input`
 - Tests in `src/lib/NumericFormat.spec.ts`
 
 ### PatternFormat
 
 - Located in `src/lib/PatternFormat.svelte`
-- Handles pattern-based masking (phone, cards, dates)
-- Custom implementation
+- Interactive input with pattern-based masking (phone, cards, dates, …)
+- Cursor-aware mask engine in `src/lib/internal/cursor.ts`
 - Tests in `src/lib/PatternFormat.spec.ts`
-- Patterns defined in `src/lib/maskPatterns.ts`
+- Built-in patterns in `src/lib/maskPatterns.ts`
+
+### NumericText
+
+- Located in `src/lib/NumericText.svelte`
+- Display-only `<span>` that formats a value via `Intl.NumberFormat`
+- SSR-safe (no `navigator` access at module init)
+- Tests in `src/lib/NumericText.spec.ts`
+
+### PatternText
+
+- Located in `src/lib/PatternText.svelte`
+- Display-only `<span>` that applies a `MaskPattern` to a static value
+- Tests in `src/lib/PatternText.spec.ts`
+
+### Internal toolkit (`src/lib/internal/`)
+
+Shared utilities, not part of the public API:
+
+- `cursor.ts` — mask engine, custom-pattern support, caret tracking
+- `env.ts` — SSR-safe `defaultLocale()` (lazy `navigator.language`)
+- `inputmode.ts` — derives the appropriate `inputmode` from a pattern
+- `values.ts` — shared `NumberFormatValues` / `OnValueChange` / `SourceInfo` types
+
+### Entry points
+
+The package ships with subpath exports for finer-grained tree-shaking:
+
+- `svelte-number-format` — everything
+- `svelte-number-format/numeric` — `NumericFormat` + `NumericText`
+- `svelte-number-format/pattern` — `PatternFormat` + `PatternText`
+- `svelte-number-format/patterns` — `MaskPatterns` constants only
+- `svelte-number-format/display` — `NumericText` + `PatternText` only
 
 ## Adding New Features
 
@@ -146,18 +182,23 @@ See [TESTING.md](./TESTING.md) for more details.
    }
    ```
 
-2. Add an example to the demo page (`src/routes/+page.svelte`)
+2. Add an example to the demo page (`src/routes/+page.svelte`) — typically a
+   new card under the Pattern showcase
 
-3. Write tests in `src/lib/PatternFormat.spec.ts`
+3. Write tests in `src/lib/PatternFormat.spec.ts` (and `PatternText.spec.ts` if
+   the pattern should also be exercised by the display component)
 
-4. Update the README with the new pattern
+4. Update the README and `CHANGELOG.md` with the new pattern
 
 ### Adding a New Number Format Option
 
 1. Options are passed through to `intl-number-input`
-2. Add examples to the demo page
-3. Update documentation in README
-4. Add tests if needed
+2. If the option also affects display formatting, mirror the support in
+   `NumericText.svelte`'s `toIntlOptions()`
+3. Add examples to the demo page (`src/routes/+page.svelte`)
+4. Update documentation in README and `CHANGELOG.md`
+5. Add tests in `NumericFormat.spec.ts` (and `NumericText.spec.ts` / `ssr.spec.ts`
+   if applicable)
 
 ## Continuous Integration
 

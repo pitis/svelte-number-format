@@ -256,6 +256,45 @@ describe('PatternFormat.svelte', () => {
       expect(formattedValue).toBe('(123) 456-7890')
     })
 
+    it('calls onValueChange with rich payload on input', async () => {
+      const calls: Array<{
+        floatValue: number | undefined
+        formattedValue: string
+        value: string
+      }> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          onValueChange: (values) => calls.push(values)
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = '1234567890'
+      await fireEvent.input(input)
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].value).toBe('1234567890')
+      expect(calls[0].formattedValue).toBe('(123) 456-7890')
+      expect(calls[0].floatValue).toBe(1234567890)
+    })
+
+    it('onValueChange reports undefined floatValue for non-numeric patterns', async () => {
+      const calls: Array<{ floatValue: number | undefined }> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'AAA-###',
+          onValueChange: (values) => calls.push(values)
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = 'ABC123'
+      await fireEvent.input(input)
+
+      expect(calls[0].floatValue).toBe(undefined)
+    })
+
     it('calls onChange callback on change event', async () => {
       let rawValue: string | null = null
       let formattedValue: string | null = null
@@ -375,6 +414,376 @@ describe('PatternFormat.svelte', () => {
 
       // Should automatically add slashes
       expect(input.value).toBe('12/25')
+    })
+  })
+
+  describe('Paste Handling', () => {
+    function firePaste(input: HTMLInputElement, text: string) {
+      const event = new Event('paste', {
+        bubbles: true,
+        cancelable: true
+      })
+      Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text' ? text : '') }
+      })
+      return fireEvent(input, event)
+    }
+
+    it('formats pasted digits into an empty phone field', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await firePaste(input, '1234567890')
+
+      expect(input.value).toBe('(123) 456-7890')
+    })
+
+    it('strips formatting from pasted pre-formatted phone', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await firePaste(input, '(415) 555-1234')
+
+      expect(input.value).toBe('(415) 555-1234')
+    })
+
+    it('truncates paste that exceeds pattern length', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.ZIP_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await firePaste(input, '1234567890')
+
+      expect(input.value).toBe('12345')
+    })
+
+    it('rejects non-matching chars in pasted content', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.DATE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await firePaste(input, 'abc12252024xyz')
+
+      expect(input.value).toBe('12/25/2024')
+    })
+
+    it('updates bound value after paste via onInput callback', async () => {
+      let raw: string | null = null
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          onInput: (r: string | null) => {
+            raw = r
+          }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await firePaste(input, '4155551234')
+
+      expect(raw).toBe('4155551234')
+    })
+  })
+
+  describe('IME composition', () => {
+    it('skips masking during active composition', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent(input, new CompositionEvent('compositionstart'))
+      input.value = 'あい'
+      await fireEvent.input(input)
+
+      // While composing, value should not be re-masked
+      expect(input.value).toBe('あい')
+    })
+
+    it('re-masks on compositionend', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent(input, new CompositionEvent('compositionstart'))
+      input.value = '1234567890'
+      await fireEvent.input(input)
+      await fireEvent(input, new CompositionEvent('compositionend'))
+
+      expect(input.value).toBe('(123) 456-7890')
+    })
+  })
+
+  describe('Keyboard navigation', () => {
+    it('Home key is not hijacked', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890'
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((r) => setTimeout(r, 10))
+      input.focus()
+      input.setSelectionRange(5, 5)
+
+      await fireEvent.keyDown(input, { key: 'Home' })
+
+      // Home is a no-op in our handler; the default behavior (move cursor)
+      // is what the browser does natively. Assert value still intact.
+      expect(input.value).toBe('(123) 456-7890')
+    })
+
+    it('End key is not hijacked', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890'
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((r) => setTimeout(r, 10))
+      input.focus()
+      input.setSelectionRange(0, 0)
+
+      await fireEvent.keyDown(input, { key: 'End' })
+
+      expect(input.value).toBe('(123) 456-7890')
+    })
+
+    it('ArrowLeft/ArrowRight are not hijacked', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890'
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((r) => setTimeout(r, 10))
+
+      await fireEvent.keyDown(input, { key: 'ArrowLeft' })
+      await fireEvent.keyDown(input, { key: 'ArrowRight' })
+
+      expect(input.value).toBe('(123) 456-7890')
+    })
+
+    it('Backspace removes the preceding raw char', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = '1234567890'
+      await fireEvent.input(input)
+
+      // Simulate backspace: user would use a real DOM method. Here we mimic
+      // the end state the browser produces after backspace: value shortened,
+      // then input handler runs.
+      input.value = '(123) 456-789'
+      await fireEvent.input(input)
+
+      expect(input.value).toBe('(123) 456-789')
+    })
+  })
+
+  describe('Focus round-trip', () => {
+    it('re-applies formatting when value changes while blurred', async () => {
+      const { rerender, container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890'
+        }
+      })
+
+      let input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('(123) 456-7890')
+
+      await rerender({
+        format: MaskPatterns.PHONE_US,
+        value: '9998887777'
+      })
+
+      input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('(999) 888-7777')
+    })
+  })
+
+  describe('allowEmptyFormatting', () => {
+    it('renders the skeleton in the input when value is empty', () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          allowEmptyFormatting: true
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('(___) ___-____')
+    })
+
+    it('renders the formatted value when value is set', () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          value: '4155551234',
+          format: MaskPatterns.PHONE_US,
+          allowEmptyFormatting: true
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('(415) 555-1234')
+    })
+
+    it('default behavior keeps input empty when value is empty', () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('')
+    })
+  })
+
+  describe('Hex / Binary Custom Patterns', () => {
+    it('accepts hex chars via custom H token', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'HHHHHH',
+          customPatterns: { H: /[0-9a-fA-F]/ }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = 'ff00aa'
+      await fireEvent.input(input)
+
+      expect(input.value).toBe('ff00aa')
+    })
+
+    it('rejects non-matching chars for custom H token', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'HHH',
+          customPatterns: { H: /[0-9a-fA-F]/ }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = 'gzq'
+      await fireEvent.input(input)
+
+      expect(input.value).toBe('')
+    })
+
+    it('supports multiple custom tokens in same pattern', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'BBBB-BB',
+          customPatterns: { B: /[01]/ }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = '101010'
+      await fireEvent.input(input)
+
+      expect(input.value).toBe('1010-10')
+    })
+
+    it('mixes custom and built-in tokens', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: '##-HH',
+          customPatterns: { H: /[a-f]/ }
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      input.value = '12ab'
+      await fireEvent.input(input)
+
+      expect(input.value).toBe('12-ab')
+    })
+  })
+
+  describe('Accessibility & input mode', () => {
+    it('sets aria-placeholder to the auto-generated mask', () => {
+      const { container } = render(PatternFormat, {
+        props: { format: '###-##-####' }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.getAttribute('aria-placeholder')).toBe('___-__-____')
+    })
+
+    it('sets inputmode="tel" for phone-like patterns', () => {
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.getAttribute('inputmode')).toBe('tel')
+    })
+
+    it('sets inputmode="numeric" for digits-only patterns', () => {
+      const { container } = render(PatternFormat, {
+        props: { format: '#####' }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.getAttribute('inputmode')).toBe('numeric')
+    })
+
+    it('sets inputmode="text" for letter-containing patterns', () => {
+      const { container } = render(PatternFormat, {
+        props: { format: 'AAA-###' }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.getAttribute('inputmode')).toBe('text')
+    })
+
+    it('lets consumer override inputmode', () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          inputmode: 'none'
+        }
+      })
+
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.getAttribute('inputmode')).toBe('none')
     })
   })
 })

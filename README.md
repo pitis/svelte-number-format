@@ -9,24 +9,32 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 
 ## Features
 
-✨ **Two Specialized Components**
+✨ **Four Components**
 
-- **NumericFormat** - Locale-aware number formatting (currency, percentages, decimals)
-- **PatternFormat** - Pattern-based input masking (phone, credit cards, dates, custom)
+- **NumericFormat** — locale-aware number input (currency, percentages, decimals)
+- **PatternFormat** — pattern-based input masking (phone, credit cards, dates, custom)
+- **NumericText** — display-only rendering of formatted numbers (no input)
+- **PatternText** — display-only rendering of masked strings (no input)
 
-🎯 **Developer Experience**
+🎯 **Developer experience**
 
 - Full TypeScript support
 - Two-way binding with `bind:value`
-- Svelte 5 native (using runes)
-- Caret position stability
-- Callback hooks for input/change events
+- Svelte 5 native (runes only)
+- Caret position stability across formatting
+- Paste handling that re-formats the whole clipboard buffer in one shot
+- IME (composition) aware — doesn't break CJK input
+- Rich `onValueChange` callback with `{ floatValue, formattedValue, value }` (react-number-format compatible)
+- Custom pattern tokens via `customPatterns`
+- `allowEmptyFormatting` to show the mask skeleton before typing
+- SSR-safe (no `navigator` at module eval)
+- A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
 
 🌍 **Internationalization**
 
-- Built on `Intl.NumberFormat` API
-- Support for any locale
-- Automatic formatting based on locale
+- Built on `Intl.NumberFormat`
+- Any BCP-47 locale
+- Automatic thousands / decimal / currency symbol per locale
 
 ## Live Demo
 
@@ -85,14 +93,16 @@ Locale-aware number formatting built on [intl-number-input](https://www.npmjs.co
 
 ### Props
 
-| Prop       | Type                                                       | Default              | Description                                                          |
-| ---------- | ---------------------------------------------------------- | -------------------- | -------------------------------------------------------------------- |
-| `value`    | `number \| null`                                           | `null`               | The numeric value. Use `bind:value` for two-way binding.             |
-| `locale`   | `string`                                                   | `navigator.language` | Locale string for formatting (e.g., `'en-US'`, `'de-DE'`, `'ja-JP'`) |
-| `options`  | `Partial<NumberInputOptions>`                              | `{}`                 | Formatting options (see below)                                       |
-| `onInput`  | `(raw: number \| null, formatted: string \| null) => void` | `undefined`          | Callback fired on every keystroke                                    |
-| `onChange` | `(raw: number \| null, formatted: string \| null) => void` | `undefined`          | Callback fired on blur/change                                        |
-| `...rest`  | `any`                                                      | -                    | All other HTML input attributes (`placeholder`, `class`, `id`, etc.) |
+| Prop            | Type                                                       | Default         | Description                                                                          |
+| --------------- | ---------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
+| `value`         | `number \| string \| null`                                 | `null`          | The numeric value. Use `bind:value` for two-way binding.                             |
+| `valueType`     | `'number' \| 'string'`                                     | `'number'`      | Whether the bound `value` is emitted as a `number` or a decimal `string`.            |
+| `locale`        | `string \| undefined`                                      | resolved lazily | Locale string. Defaults to `navigator.language` on the client, `'en-US'` during SSR. |
+| `options`       | `Partial<NumberInputOptions>`                              | `{}`            | Formatting options (see below).                                                      |
+| `onInput`       | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on every keystroke.                                                   |
+| `onChange`      | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on blur/change.                                                       |
+| `onValueChange` | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined`     | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).           |
+| `...rest`       | `any`                                                      | —               | All other HTML input attributes.                                                     |
 
 ### Options
 
@@ -249,16 +259,19 @@ Pattern-based input masking for structured text inputs.
 
 ### Props
 
-| Prop          | Type                                                       | Default     | Description                                                              |
-| ------------- | ---------------------------------------------------------- | ----------- | ------------------------------------------------------------------------ |
-| `value`       | `string \| null`                                           | `null`      | The raw unmasked value. Use `bind:value` for two-way binding.            |
-| `format`      | `string`                                                   | `''`        | Pattern string (e.g., `'(###) ###-####'`). See pattern characters below. |
-| `mask`        | `string`                                                   | `''`        | **Deprecated** - Use `format` instead. Kept for backwards compatibility. |
-| `maskChar`    | `string`                                                   | `'_'`       | Character shown in placeholder for pattern positions                     |
-| `placeholder` | `string`                                                   | auto        | Placeholder text (auto-generated from format if not provided)            |
-| `onInput`     | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on every keystroke                                        |
-| `onChange`    | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on blur/change                                            |
-| `...rest`     | `any`                                                      | -           | All other HTML input attributes                                          |
+| Prop                   | Type                                                       | Default     | Description                                                                              |
+| ---------------------- | ---------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `value`                | `string \| null`                                           | `null`      | The raw unmasked value. Use `bind:value` for two-way binding.                            |
+| `format`               | `string`                                                   | `''`        | Pattern string (e.g. `'(###) ###-####'`). See [pattern characters](#pattern-characters). |
+| `mask`                 | `string`                                                   | `''`        | **Deprecated** — use `format`. Emits a dev-mode warning. Removed in 2.0.                 |
+| `maskChar`             | `string`                                                   | `'_'`       | Character shown in auto-generated placeholder for pattern positions.                     |
+| `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                          |
+| `customPatterns`       | `Record<string, RegExp>`                                   | `undefined` | Additional pattern tokens. See [Custom patterns](#custom-patterns).                      |
+| `allowEmptyFormatting` | `boolean`                                                  | `false`     | Render the mask skeleton as the input's value when empty. See below.                     |
+| `onInput`              | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on every keystroke (not during IME composition).                          |
+| `onChange`             | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on blur/change.                                                           |
+| `onValueChange`        | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined` | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).               |
+| `...rest`              | `any`                                                      | —           | All other HTML input attributes.                                                         |
 
 ### Pattern Characters
 
@@ -402,6 +415,323 @@ MaskPatterns.HEX_COLOR // #******
 
 ---
 
+## Display-only components
+
+`NumericText` and `PatternText` render formatted values as a `<span>` (no input). Useful in tables, summaries, and read-only views where you want to reuse your formatting rules.
+
+```svelte
+<script lang="ts">
+  import {
+    NumericText,
+    PatternText,
+    MaskPatterns,
+    NumberFormatStyle
+  } from 'svelte-number-format'
+</script>
+
+<!-- Display currency -->
+<NumericText
+  value={1234.56}
+  locale="en-US"
+  options={{
+    formatStyle: NumberFormatStyle.Currency,
+    currency: 'USD',
+    precision: 2
+  }}
+  class="price"
+/>
+<!-- renders: <span class="price">$1,234.56</span> -->
+
+<!-- Display formatted phone -->
+<PatternText value="4155551234" format={MaskPatterns.PHONE_US} />
+<!-- renders: <span>(415) 555-1234</span> -->
+
+<!-- Fallback when value is null -->
+<NumericText value={null} fallback="—" />
+```
+
+Both components accept a `fallback` prop for null/empty values.
+
+---
+
+## `onValueChange` rich payload
+
+For parity with [`react-number-format`](https://www.npmjs.com/package/react-number-format), both inputs accept an `onValueChange` callback with a structured payload:
+
+```typescript
+interface NumberFormatValues {
+  floatValue: number | undefined // parsed number, or undefined when empty/invalid
+  formattedValue: string // what the user sees in the input
+  value: string // raw string representation (e.g. "1234.56")
+}
+
+interface SourceInfo {
+  event: Event | undefined
+  source: 'event' | 'prop' // 'prop' if triggered by external value change
+}
+```
+
+```svelte
+<script lang="ts">
+  import { NumericFormat, type NumberFormatValues } from 'svelte-number-format'
+
+  let amount = $state<number | null>(null)
+
+  function handleValueChange(values: NumberFormatValues) {
+    console.log(values.floatValue) // 1234.56
+    console.log(values.formattedValue) // "$1,234.56"
+    console.log(values.value) // "1234.56"
+  }
+</script>
+
+<NumericFormat
+  bind:value={amount}
+  options={{ precision: 2 }}
+  onValueChange={handleValueChange}
+/>
+```
+
+Pick the field that matches your form-library's expectations — `floatValue` for Zod `z.number()`, `value` for string schemas, `formattedValue` for display.
+
+---
+
+## Paste handling
+
+`PatternFormat` correctly handles paste in one shot, not character-by-character. Pasting any string (including pre-formatted input like `(415) 555-1234` into a phone mask) strips non-matching characters and re-applies the mask atomically, placing the cursor where expected.
+
+No configuration needed — it just works.
+
+---
+
+## Custom patterns
+
+Add your own token characters for patterns that don't fit `#` / `A` / `*`:
+
+```svelte
+<script lang="ts">
+  import { PatternFormat } from 'svelte-number-format'
+
+  let hexColor = $state<string | null>(null)
+</script>
+
+<PatternFormat
+  bind:value={hexColor}
+  format="HHHHHH"
+  customPatterns={{ H: /[0-9a-fA-F]/ }}
+  placeholder="ff00aa"
+/>
+
+<!-- Binary -->
+<PatternFormat format="BBBB BBBB" customPatterns={{ B: /[01]/ }} />
+```
+
+Keys that collide with the built-in tokens (`#`, `A`, `*`) trigger a dev-mode warning and the built-in takes precedence.
+
+---
+
+## `allowEmptyFormatting`
+
+Show the mask skeleton in the input even when empty, so users see the expected shape before they start typing:
+
+```svelte
+<PatternFormat format={MaskPatterns.PHONE_US} allowEmptyFormatting />
+<!-- input.value = "(___) ___-____" even with no value -->
+```
+
+On focus, the caret lands at the first fillable slot.
+
+---
+
+## Accessibility
+
+Both input components forward all HTML attributes via spread, so `aria-invalid`, `aria-describedby`, `aria-label`, `aria-errormessage`, and `role` work out of the box. In addition:
+
+- `PatternFormat` sets `aria-placeholder` to the auto-generated mask string (e.g. `(___) ___-____`) so screen readers announce the expected shape.
+- `PatternFormat` auto-infers `inputmode` from the pattern (`numeric` / `tel` / `text`) to trigger the right mobile keyboard. Consumer-supplied `inputmode` wins.
+- `NumericFormat` gets its `inputmode` from the underlying formatter (`decimal` by default).
+
+```svelte
+<PatternFormat
+  format={MaskPatterns.PHONE_US}
+  aria-label="Phone number"
+  aria-invalid={!phone}
+  aria-describedby="phone-error"
+/>
+```
+
+---
+
+## SSR / SvelteKit
+
+Both components render safely in SSR. `NumericFormat`'s default locale is resolved lazily — `navigator.language` on the client, `'en-US'` during server render — so `+page.svelte` using these components won't throw on the server.
+
+```svelte
+<!-- +page.svelte (SSR-safe) -->
+<script lang="ts">
+  import { NumericFormat } from 'svelte-number-format'
+  let price = $state<number | null>(19.99)
+</script>
+
+<NumericFormat bind:value={price} locale="en-US" options={{ precision: 2 }} />
+```
+
+Pass an explicit `locale` prop if you want consistent server/client rendering regardless of the visitor's browser language.
+
+---
+
+## Subpath imports
+
+For more explicit tree-shaking, import from narrow subpaths:
+
+```typescript
+// Numeric only (skips loading pattern masking code)
+import { NumericFormat, NumericText } from 'svelte-number-format/numeric'
+
+// Pattern only (skips loading intl-number-input)
+import { PatternFormat, PatternText } from 'svelte-number-format/pattern'
+
+// Just the patterns constant
+import { MaskPatterns } from 'svelte-number-format/patterns'
+
+// Just display-only components
+import { NumericText, PatternText } from 'svelte-number-format/display'
+```
+
+The root export (`svelte-number-format`) still works and includes everything. Modern bundlers tree-shake the root export correctly, but subpath imports are clearer about intent.
+
+---
+
+## Form-library integration
+
+Both inputs use plain `bind:value` on a number (`NumericFormat`) or a string of raw digits (`PatternFormat`), which makes them drop-in compatible with the popular Svelte form libraries. The playground has three worked examples — source in `src/routes/demos/`:
+
+- [`/demos/superforms`](https://pitis.github.io/svelte-number-format/demos/superforms/) — [sveltekit-superforms](https://superforms.rocks) + Zod with server-side validation and action handling
+- [`/demos/formsnap`](https://pitis.github.io/svelte-number-format/demos/formsnap/) — [Formsnap](https://formsnap.dev) headless primitives on top of Superforms, auto-wiring all a11y attributes
+- [`/demos/felte`](https://pitis.github.io/svelte-number-format/demos/felte/) — [Felte](https://felte.dev) with the Zod validator, fully client-side
+
+All three share one schema:
+
+```ts
+import { z } from 'zod'
+
+export const schema = z.object({
+  amount: z.number().min(0).max(1_000_000),
+  phone: z.string().regex(/^\d{10}$/, 'Must be exactly 10 digits')
+})
+```
+
+### Superforms (the standard choice)
+
+```svelte
+<script lang="ts">
+  import { superForm } from 'sveltekit-superforms'
+  import {
+    NumericFormat,
+    PatternFormat,
+    MaskPatterns,
+    NumberFormatStyle
+  } from 'svelte-number-format'
+
+  let { data } = $props()
+  const { form, errors, enhance } = superForm(data.form, { dataType: 'json' })
+</script>
+
+<form method="POST" use:enhance>
+  <NumericFormat
+    bind:value={$form.amount}
+    options={{
+      formatStyle: NumberFormatStyle.Currency,
+      currency: 'USD',
+      precision: 2
+    }}
+  />
+  {#if $errors.amount}<p class="error">{$errors.amount}</p>{/if}
+
+  <PatternFormat bind:value={$form.phone} format={MaskPatterns.PHONE_US} />
+  {#if $errors.phone}<p class="error">{$errors.phone}</p>{/if}
+
+  <button type="submit">Submit</button>
+</form>
+```
+
+### Felte (client-side)
+
+```svelte
+<script lang="ts">
+  import { createForm } from 'felte'
+  import { validator } from '@felte/validator-zod'
+  import {
+    NumericFormat,
+    PatternFormat,
+    MaskPatterns,
+    NumberFormatStyle
+  } from 'svelte-number-format'
+
+  let amount = $state<number | null>(0)
+  let phone = $state<string | null>('')
+
+  const { form, errors, setFields } = createForm({
+    initialValues: { amount: 0, phone: '' },
+    extend: [validator({ schema })],
+    onSubmit: (values) => {
+      /* ... */
+    }
+  })
+
+  $effect(() => {
+    setFields('amount', amount ?? 0, true)
+  })
+  $effect(() => {
+    setFields('phone', phone ?? '', true)
+  })
+</script>
+
+<form use:form>
+  <NumericFormat
+    name="amount"
+    bind:value={amount}
+    options={{
+      formatStyle: NumberFormatStyle.Currency,
+      currency: 'USD',
+      precision: 2
+    }}
+  />
+  <PatternFormat
+    name="phone"
+    bind:value={phone}
+    format={MaskPatterns.PHONE_US}
+  />
+</form>
+```
+
+The Felte integration needs a tiny `$effect` bridge because Felte's internal store is string-keyed form data populated by DOM `name=…` attributes, while our components emit typed values via `bind:value`. Both Superforms and Formsnap avoid this because they already consume a reactive store.
+
+---
+
+## Migrating from react-number-format
+
+svelte-number-format mirrors react-number-format's API where possible. The big differences come from Svelte's idioms rather than missing features.
+
+| react-number-format                    | svelte-number-format                      | Notes                                                                                |
+| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| `<NumericFormat />`                    | `<NumericFormat />`                       | Same name, same concept.                                                             |
+| `<PatternFormat />`                    | `<PatternFormat />`                       | Same name, same concept.                                                             |
+| `<NumericFormat displayType="text" />` | `<NumericText />`                         | Separate component instead of a prop.                                                |
+| `<PatternFormat displayType="text" />` | `<PatternText />`                         | Same idea for pattern masks.                                                         |
+| `value={state}` + `onValueChange`      | `bind:value={state}` _or_ `onValueChange` | Use Svelte's `bind:value` — simpler, no need to wire state.                          |
+| `onValueChange={(v) => ...}`           | `onValueChange={(v, s) => ...}`           | Payload shape is the same: `{ floatValue, formattedValue, value }`.                  |
+| `format="(###) ###-####"`              | `format="(###) ###-####"`                 | Same token characters (`#`, but not `A`/`*` in react-number-format's default build). |
+| `format` with custom patterns          | `customPatterns={{ H: /[0-9a-f]/ }}`      | Pass the regex map as a prop.                                                        |
+| `allowEmptyFormatting`                 | `allowEmptyFormatting`                    | Same semantics.                                                                      |
+| `mask="_"`                             | `maskChar="_"`                            | Renamed to avoid collision with the legacy `mask` prop.                              |
+| `thousandSeparator`                    | `options.useGrouping`                     | Locale-aware — set `locale` instead of separators.                                   |
+| `decimalSeparator`                     | Locale-aware                              | Set `locale="de-DE"` to get `1.234,56`.                                              |
+| `thousandsGroupStyle`                  | Locale-aware                              | Locales handle grouping (`en-IN` → `1,23,456`).                                      |
+| `prefix` / `suffix`                    | `options.formatStyle: Currency`           | For currency, use `formatStyle` + `currency` for locale-correct symbols.             |
+| `valueIsNumericString`                 | `valueType="string"`                      | Emits the bound value as a string when set.                                          |
+
+---
+
 ## Advanced Usage
 
 ### Controlled Components
@@ -469,21 +799,33 @@ Both components support controlled mode:
 
 ## Migration from v1.x
 
-If you're upgrading from an earlier version, see [MIGRATION.md](./MIGRATION.md) for the full migration guide.
+See [MIGRATION.md](./MIGRATION.md) for the full guide.
 
-### Quick Migration
+### v1.x → v2.0 breaking changes
 
-**Old names** (still work):
+v2.0 removes three long-deprecated APIs. None of them have functional replacements you don't already have — it's pure cleanup.
+
+| Removed                                             | Replacement                    | Deprecated since |
+| --------------------------------------------------- | ------------------------------ | ---------------- |
+| `SvelteNumberFormat` (re-export of `NumericFormat`) | `NumericFormat`                | 1.0              |
+| `SvelteMaskFormat` (re-export of `PatternFormat`)   | `PatternFormat`                | 1.0              |
+| `<PatternFormat mask="###">` prop                   | `<PatternFormat format="###">` | 1.0              |
 
 ```svelte
-import {(SvelteNumberFormat, SvelteMaskFormat)} from 'svelte-number-format';
+<!-- v1.x -->
+<script>
+  import { SvelteMaskFormat } from 'svelte-number-format'
+</script>
+<SvelteMaskFormat mask="(###) ###-####" />
+
+<!-- v2.0 -->
+<script>
+  import { PatternFormat } from 'svelte-number-format'
+</script>
+<PatternFormat format="(###) ###-####" />
 ```
 
-**New names** (recommended):
-
-```svelte
-import {(NumericFormat, PatternFormat)} from 'svelte-number-format';
-```
+The v1.2 dev-mode warning for the `mask` prop is removed in v2.0 along with the prop itself.
 
 ---
 
@@ -496,10 +838,18 @@ import type { NumberInputOptions } from 'intl-number-input'
 import {
   NumericFormat,
   PatternFormat,
+  NumericText,
+  PatternText,
   NumberFormatStyle,
   MaskPatterns
 } from 'svelte-number-format'
-import type { MaskPattern } from 'svelte-number-format'
+import type {
+  MaskPattern,
+  NumberFormatValues,
+  OnValueChange,
+  SourceInfo,
+  ValueChangeSource
+} from 'svelte-number-format'
 ```
 
 ---

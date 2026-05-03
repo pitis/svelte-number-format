@@ -1,280 +1,217 @@
 <script lang="ts">
+  import {
+    applyMask,
+    calculateCursorPosition,
+    firstTokenIndex,
+    generatePlaceholder,
+    isBuiltinToken,
+    isPatternToken,
+    type CustomPatterns
+  } from './internal/cursor.js'
+  import { inferInputMode } from './internal/inputmode.js'
+  import { toFloat, type OnValueChange } from './internal/values.js'
+
   interface Props {
     value?: string | null
     format?: string
-    mask?: string // deprecated, use format
     maskChar?: string
     placeholder?: string
+    customPatterns?: CustomPatterns
+    allowEmptyFormatting?: boolean
     onInput?: (value: string | null, formatted: string | null) => void
     onChange?: (value: string | null, formatted: string | null) => void
+    onValueChange?: OnValueChange
     [key: string]: unknown
   }
 
   let {
     value = $bindable(null),
     format = '',
-    mask = '', // deprecated
     maskChar = '_',
     placeholder = '',
+    customPatterns,
+    allowEmptyFormatting = false,
     onInput = () => {},
     onChange = () => {},
+    onValueChange,
     ...restProps
   }: Props = $props()
 
-  // Use format if provided, otherwise fall back to mask for backwards compatibility
-  const pattern = $derived(format || mask)
+  const isDev =
+    typeof import.meta !== 'undefined' &&
+    Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV)
 
-  let inputEl: HTMLInputElement | null = null
-  let cursorPosition = 0
+  let warnedCustomPatternCollision = false
 
-  // Pattern definitions:
-  // # = digit (0-9)
-  // A = letter (a-z, A-Z)
-  // * = alphanumeric
-  // all other characters are literals
-
-  function isValidChar(char: string, pattern: string): boolean {
-    switch (pattern) {
-      case '#':
-        return /\d/.test(char)
-      case 'A':
-        return /[a-zA-Z]/.test(char)
-      case '*':
-        return /[a-zA-Z0-9]/.test(char)
-      default:
-        return char === pattern
-    }
-  }
-
-  function applyMask(
-    inputValue: string,
-    maskPattern: string
-  ): { masked: string; raw: string } {
-    if (!maskPattern) {
-      return { masked: inputValue, raw: inputValue }
-    }
-
-    let raw = ''
-    let masked = ''
-    let valueIndex = 0
-    let maskIndex = 0
-
-    while (maskIndex < maskPattern.length && valueIndex < inputValue.length) {
-      const maskChar = maskPattern[maskIndex]
-      const inputChar = inputValue[valueIndex]
-
-      if (maskChar === '#' || maskChar === 'A' || maskChar === '*') {
-        if (isValidChar(inputChar, maskChar)) {
-          masked += inputChar
-          raw += inputChar
-          maskIndex++
-          valueIndex++
-        } else {
-          valueIndex++
-        }
-      } else {
-        // Literal character in mask
-        masked += maskChar
-        maskIndex++
-
-        // If input matches the literal, skip it
-        if (inputChar === maskChar) {
-          valueIndex++
+  $effect(() => {
+    if (isDev && customPatterns && !warnedCustomPatternCollision) {
+      for (const key of Object.keys(customPatterns)) {
+        if (isBuiltinToken(key)) {
+          warnedCustomPatternCollision = true
+          console.warn(
+            `[svelte-number-format] customPatterns key "${key}" collides with a built-in token (#, A, or *). The built-in takes precedence.`
+          )
+          break
         }
       }
     }
+  })
 
-    return { masked, raw }
-  }
+  const pattern = $derived(format)
+  const autoPlaceholder = $derived(
+    generatePlaceholder(pattern, maskChar, customPatterns)
+  )
+  const resolvedPlaceholder = $derived(placeholder || autoPlaceholder)
+  const inferredInputMode = $derived(inferInputMode(pattern))
+
+  let inputEl: HTMLInputElement | null = null
+  let isFocused = false
+  let isComposing = false
 
   function formatValue(val: string | null): string {
     if (!val || !pattern) return val || ''
-    const result = applyMask(val, pattern)
-    return result.masked
+    return applyMask(val, pattern, customPatterns).masked
   }
 
-  function calculateCursorPosition(
-    oldCursorPos: number,
-    oldValue: string,
-    newValue: string,
-    pattern: string
-  ): number {
-    // Count how many raw characters were before the cursor
-    // We need to map the cursor position in the old (possibly formatted) value
-    // to how many raw characters that represents
-    let rawCharsBeforeCursor = 0
-    let oldPos = 0
-    let patternPos = 0
+  function commit(
+    target: HTMLInputElement,
+    rawInput: string,
+    prevCursor: number
+  ): { raw: string; masked: string; nextCursor: number } {
+    const { raw, masked } = applyMask(rawInput, pattern, customPatterns)
+    target.value = masked
+    const nextCursor = calculateCursorPosition(
+      prevCursor,
+      rawInput,
+      masked,
+      pattern,
+      customPatterns
+    )
+    target.setSelectionRange(nextCursor, nextCursor)
+    value = raw || null
+    return { raw, masked, nextCursor }
+  }
 
-    while (
-      oldPos < oldCursorPos &&
-      oldPos < oldValue.length &&
-      patternPos < pattern.length
-    ) {
-      const patternChar = pattern[patternPos]
-      const oldChar = oldValue[oldPos]
-
-      if (patternChar === '#' || patternChar === 'A' || patternChar === '*') {
-        // This is a pattern position
-        if (isValidChar(oldChar, patternChar)) {
-          rawCharsBeforeCursor++
-          oldPos++
-          patternPos++
-        } else {
-          // Character doesn't match pattern, skip it
-          oldPos++
-        }
-      } else {
-        // Literal character
-        if (oldChar === patternChar) {
-          // Matches literal, skip it
-          oldPos++
-          patternPos++
-        } else {
-          // User typed a raw char where literal should be, count it
-          rawCharsBeforeCursor++
-          oldPos++
-        }
-      }
-    }
-
-    // Count any remaining characters beyond the pattern
-    while (oldPos < oldCursorPos && oldPos < oldValue.length) {
-      rawCharsBeforeCursor++
-      oldPos++
-    }
-
-    // Now find where those raw characters end up in the new formatted value
-    let newCursorPos = 0
-    let rawCharsCounted = 0
-    patternPos = 0
-
-    while (
-      patternPos < pattern.length &&
-      rawCharsCounted < rawCharsBeforeCursor &&
-      newCursorPos < newValue.length
-    ) {
-      const patternChar = pattern[patternPos]
-      const newChar = newValue[newCursorPos]
-
-      if (patternChar === '#' || patternChar === 'A' || patternChar === '*') {
-        if (isValidChar(newChar, patternChar)) {
-          rawCharsCounted++
-          newCursorPos++
-          patternPos++
-        } else {
-          // Shouldn't happen in formatted string, but advance
-          newCursorPos++
-          patternPos++
-        }
-      } else {
-        // Literal - always include it
-        newCursorPos++
-        patternPos++
-      }
-    }
-
-    // If we still need more positions (beyond pattern)
-    while (
-      rawCharsCounted < rawCharsBeforeCursor &&
-      newCursorPos < newValue.length
-    ) {
-      newCursorPos++
-      rawCharsCounted++
-    }
-
-    return Math.min(newCursorPos, newValue.length)
+  function emitValueChange(
+    raw: string,
+    masked: string,
+    event: Event | undefined
+  ) {
+    onValueChange?.(
+      {
+        floatValue: toFloat(raw),
+        formattedValue: masked,
+        value: raw
+      },
+      { event, source: event ? 'event' : 'prop' }
+    )
   }
 
   function handleInput(e: Event) {
+    if (isComposing) return
     const target = e.target as HTMLInputElement
-    const inputValue = target.value
+    const prevCursor = target.selectionStart ?? 0
+    const { raw, masked } = commit(target, target.value, prevCursor)
+    onInput?.(raw || null, masked || null)
+    emitValueChange(raw, masked, e)
+  }
 
-    // Store cursor position before formatting
-    cursorPosition = target.selectionStart || 0
+  function handleCompositionStart() {
+    isComposing = true
+  }
 
-    const result = applyMask(inputValue, pattern)
-    const formatted = result.masked
-
-    // Update the display value
-    target.value = formatted
-
-    // Calculate new cursor position based on raw characters typed
-    const newCursorPos = calculateCursorPosition(
-      cursorPosition,
-      inputValue,
-      formatted,
-      pattern
-    )
-
-    // Restore cursor position
-    target.setSelectionRange(newCursorPos, newCursorPos)
-
-    // Update bound value with raw value
-    value = result.raw || null
-
-    // Call callback
-    onInput?.(result.raw || null, formatted || null)
+  function handleCompositionEnd(e: CompositionEvent) {
+    isComposing = false
+    const target = e.target as HTMLInputElement
+    const prevCursor = target.selectionStart ?? 0
+    const { raw, masked } = commit(target, target.value, prevCursor)
+    onInput?.(raw || null, masked || null)
+    emitValueChange(raw, masked, e)
   }
 
   function handleChange(e: Event) {
     const target = e.target as HTMLInputElement
-    const result = applyMask(target.value, pattern)
+    const { raw, masked } = applyMask(target.value, pattern, customPatterns)
+    target.value = masked
+    value = raw || null
+    onChange?.(raw || null, masked || null)
+    emitValueChange(raw, masked, e)
+  }
 
-    value = result.raw || null
-    target.value = result.masked
+  function handlePaste(e: ClipboardEvent) {
+    if (!pattern) return
+    const target = e.target as HTMLInputElement
+    const clipboard = e.clipboardData?.getData('text')
+    if (clipboard == null) return
 
-    onChange?.(result.raw || null, result.masked || null)
+    e.preventDefault()
+
+    const selStart = target.selectionStart ?? target.value.length
+    const selEnd = target.selectionEnd ?? target.value.length
+    const merged =
+      target.value.slice(0, selStart) + clipboard + target.value.slice(selEnd)
+    const cursorAfterPaste = selStart + clipboard.length
+
+    const { raw, masked } = commit(target, merged, cursorAfterPaste)
+    onInput?.(raw || null, masked || null)
+    emitValueChange(raw, masked, e)
   }
 
   function handleKeyDown(e: KeyboardEvent) {
     const target = e.target as HTMLInputElement
 
-    // Allow backspace to work properly with pattern
     if (e.key === 'Backspace') {
-      cursorPosition = target.selectionStart || 0
+      const cursor = target.selectionStart ?? 0
 
-      if (cursorPosition > 0 && pattern) {
-        const patternChar = pattern[cursorPosition - 1]
+      if (cursor > 0 && pattern) {
+        const patternChar = pattern[cursor - 1]
 
-        // Check if we're on a literal character
-        if (
-          patternChar &&
-          patternChar !== '#' &&
-          patternChar !== 'A' &&
-          patternChar !== '*'
-        ) {
-          // Skip over literal characters when backspacing
+        if (patternChar && !isPatternToken(patternChar, customPatterns)) {
           e.preventDefault()
-          const newValue =
-            target.value.substring(0, cursorPosition - 1) +
-            target.value.substring(cursorPosition)
-          target.value = newValue
-          target.setSelectionRange(cursorPosition - 1, cursorPosition - 1)
+          const nextValue =
+            target.value.substring(0, cursor - 1) +
+            target.value.substring(cursor)
+          target.value = nextValue
+          target.setSelectionRange(cursor - 1, cursor - 1)
           handleInput(new Event('input'))
         }
       }
     }
   }
 
+  function handleFocus() {
+    isFocused = true
+
+    if (allowEmptyFormatting && pattern && !value && inputEl) {
+      const skeleton = autoPlaceholder
+      if (inputEl.value !== skeleton) {
+        inputEl.value = skeleton
+      }
+      const slot = firstTokenIndex(pattern, customPatterns)
+      queueMicrotask(() => inputEl?.setSelectionRange(slot, slot))
+    }
+  }
+
+  function handleBlur() {
+    isFocused = false
+  }
+
   $effect(() => {
     if (!inputEl) return
-
-    // Set initial value if provided
-    if (value != null) {
-      const formatted = formatValue(value)
-      inputEl.value = formatted
+    if (value != null && value !== '') {
+      inputEl.value = formatValue(value)
+    } else if (allowEmptyFormatting && pattern && !isFocused) {
+      inputEl.value = autoPlaceholder
     }
   })
 
-  // Watch for external value changes
   $effect(() => {
-    if (!inputEl || !value) return
-
-    // Only update if not currently focused
-    if (document.activeElement !== inputEl) {
-      const formatted = formatValue(value)
-      inputEl.value = formatted
+    if (!inputEl) return
+    if (isFocused) return
+    if (value != null && value !== '') {
+      inputEl.value = formatValue(value)
+    } else {
+      inputEl.value = allowEmptyFormatting && pattern ? autoPlaceholder : ''
     }
   })
 </script>
@@ -283,11 +220,14 @@
   bind:this={inputEl}
   oninput={handleInput}
   onchange={handleChange}
+  onpaste={handlePaste}
   onkeydown={handleKeyDown}
-  placeholder={placeholder ||
-    pattern
-      .replace(/#/g, maskChar)
-      .replace(/A/g, maskChar)
-      .replace(/\*/g, maskChar)}
+  onfocus={handleFocus}
+  onblur={handleBlur}
+  oncompositionstart={handleCompositionStart}
+  oncompositionend={handleCompositionEnd}
+  placeholder={resolvedPlaceholder}
+  aria-placeholder={resolvedPlaceholder || undefined}
+  inputmode={inferredInputMode}
   {...restProps}
 />
