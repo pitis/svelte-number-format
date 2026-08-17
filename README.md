@@ -93,16 +93,18 @@ Locale-aware number formatting built on [intl-number-input](https://www.npmjs.co
 
 ### Props
 
-| Prop            | Type                                                       | Default         | Description                                                                          |
-| --------------- | ---------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
-| `value`         | `number \| string \| null`                                 | `null`          | The numeric value. Use `bind:value` for two-way binding.                             |
-| `valueType`     | `'number' \| 'string'`                                     | `'number'`      | Whether the bound `value` is emitted as a `number` or a decimal `string`.            |
-| `locale`        | `string \| undefined`                                      | resolved lazily | Locale string. Defaults to `navigator.language` on the client, `'en-US'` during SSR. |
-| `options`       | `Partial<NumberInputOptions>`                              | `{}`            | Formatting options (see below).                                                      |
-| `onInput`       | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on every keystroke.                                                   |
-| `onChange`      | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on blur/change.                                                       |
-| `onValueChange` | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined`     | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).           |
-| `...rest`       | `any`                                                      | —               | All other HTML input attributes.                                                     |
+| Prop            | Type                                                       | Default         | Description                                                                                                                                                                                                                                                                        |
+| --------------- | ---------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`         | `number \| string \| null`                                 | `null`          | The numeric value. Use `bind:value` for two-way binding.                                                                                                                                                                                                                           |
+| `valueType`     | `'number' \| 'string'`                                     | `'number'`      | Whether the bound `value` is emitted as a `number` or a decimal `string`.                                                                                                                                                                                                          |
+| `name`          | `string`                                                   | `undefined`     | When set, a companion `<input type="hidden">` with this name carries the **raw** numeric value (e.g. `1234.56`) for native form submission; the visible formatted input stays unnamed. See [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions). |
+| `form`          | `string`                                                   | `undefined`     | Form `id` for out-of-form association. Applied to both the visible and hidden inputs.                                                                                                                                                                                              |
+| `locale`        | `string \| undefined`                                      | resolved lazily | Locale string. Defaults to `navigator.language` on the client, `'en-US'` during SSR.                                                                                                                                                                                               |
+| `options`       | `Partial<NumberInputOptions>`                              | `{}`            | Formatting options (see below).                                                                                                                                                                                                                                                    |
+| `onInput`       | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on every keystroke.                                                                                                                                                                                                                                                 |
+| `onChange`      | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on blur/change.                                                                                                                                                                                                                                                     |
+| `onValueChange` | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined`     | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).                                                                                                                                                                                                         |
+| `...rest`       | `any`                                                      | —               | All other HTML input attributes.                                                                                                                                                                                                                                                   |
 
 ### Options
 
@@ -259,19 +261,21 @@ Pattern-based input masking for structured text inputs.
 
 ### Props
 
-| Prop                   | Type                                                       | Default     | Description                                                                              |
-| ---------------------- | ---------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
-| `value`                | `string \| null`                                           | `null`      | The raw unmasked value. Use `bind:value` for two-way binding.                            |
-| `format`               | `string`                                                   | `''`        | Pattern string (e.g. `'(###) ###-####'`). See [pattern characters](#pattern-characters). |
-| `mask`                 | `string`                                                   | `''`        | **Deprecated** — use `format`. Emits a dev-mode warning. Removed in 2.0.                 |
-| `maskChar`             | `string`                                                   | `'_'`       | Character shown in auto-generated placeholder for pattern positions.                     |
-| `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                          |
-| `customPatterns`       | `Record<string, RegExp>`                                   | `undefined` | Additional pattern tokens. See [Custom patterns](#custom-patterns).                      |
-| `allowEmptyFormatting` | `boolean`                                                  | `false`     | Render the mask skeleton as the input's value when empty. See below.                     |
-| `onInput`              | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on every keystroke (not during IME composition).                          |
-| `onChange`             | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on blur/change.                                                           |
-| `onValueChange`        | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined` | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).               |
-| `...rest`              | `any`                                                      | —           | All other HTML input attributes.                                                         |
+| Prop                   | Type                                                       | Default     | Description                                                                                                                                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`                | `string \| null`                                           | `null`      | The raw unmasked value. Use `bind:value` for two-way binding.                                                                                                                                                                                                                             |
+| `format`               | `string`                                                   | `''`        | Pattern string (e.g. `'(###) ###-####'`). See [pattern characters](#pattern-characters).                                                                                                                                                                                                  |
+| `name`                 | `string`                                                   | `undefined` | When set, a companion `<input type="hidden">` with this name carries the **raw** unmasked value (never the mask skeleton) for native form submission; the visible masked input stays unnamed. See [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions). |
+| `form`                 | `string`                                                   | `undefined` | Form `id` for out-of-form association. Applied to both the visible and hidden inputs.                                                                                                                                                                                                     |
+| `mask`                 | `string`                                                   | `''`        | **Deprecated** — use `format`. Emits a dev-mode warning. Removed in 2.0.                                                                                                                                                                                                                  |
+| `maskChar`             | `string`                                                   | `'_'`       | Character shown in auto-generated placeholder for pattern positions.                                                                                                                                                                                                                      |
+| `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                                                                                                                                                                                                                           |
+| `customPatterns`       | `Record<string, RegExp>`                                   | `undefined` | Additional pattern tokens. See [Custom patterns](#custom-patterns).                                                                                                                                                                                                                       |
+| `allowEmptyFormatting` | `boolean`                                                  | `false`     | Render the mask skeleton as the input's value when empty. See below.                                                                                                                                                                                                                      |
+| `onInput`              | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on every keystroke (not during IME composition).                                                                                                                                                                                                                           |
+| `onChange`             | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on blur/change.                                                                                                                                                                                                                                                            |
+| `onValueChange`        | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined` | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).                                                                                                                                                                                                                |
+| `...rest`              | `any`                                                      | —           | All other HTML input attributes.                                                                                                                                                                                                                                                          |
 
 ### Pattern Characters
 
@@ -704,7 +708,60 @@ export const schema = z.object({
 </form>
 ```
 
-The Felte integration needs a tiny `$effect` bridge because Felte's internal store is string-keyed form data populated by DOM `name=…` attributes, while our components emit typed values via `bind:value`. Both Superforms and Formsnap avoid this because they already consume a reactive store.
+The Felte integration needs a tiny `$effect` bridge because Felte's internal store is string-keyed form data populated by DOM `name=…` attributes, while our components emit typed values via `bind:value`. Both Superforms and Formsnap avoid this because they already consume a reactive store. Note that since v2.0.1 the `name` prop lands on a hidden input carrying the raw value (see below), which is what Felte reads.
+
+---
+
+## Native forms & SvelteKit remote functions
+
+When you pass a `name` prop, both components render **two** inputs: the visible one showing the formatted value (`$1,234.56`, `(415) 555-1234`) with no `name`, and a companion `<input type="hidden">` that carries the raw value (`1234.56`, `4155551234`) under your `name`. Native `FormData` — and anything built on it, like SvelteKit form actions and remote form functions — therefore receives a machine-parseable value instead of a locale-formatted string, and framework code that writes values back into named fields never fights the formatter.
+
+```svelte
+<NumericFormat name="amount" bind:value />
+<!-- renders:
+  <input value="1,234.56" ... />
+  <input type="hidden" name="amount" value="1234.56" />
+-->
+```
+
+### SvelteKit remote form functions
+
+SvelteKit's experimental remote `form` functions coerce a field from string to number when its name has the `n:` prefix. Pass that prefix directly and declare a plain number in your schema:
+
+```ts
+// data.remote.ts
+import * as z from 'zod'
+import { form } from '$app/server'
+
+export const postForm = form(
+  z.object({ amount: z.number().min(0) }),
+  async (data) => {
+    // data.amount is a number
+  }
+)
+```
+
+```svelte
+<script>
+  import { NumericFormat } from 'svelte-number-format'
+  import { postForm } from './data.remote'
+
+  let value = $state(null)
+</script>
+
+<form {...postForm}>
+  <NumericFormat name="n:amount" bind:value />
+  <button>Submit</button>
+</form>
+```
+
+Do **not** spread SvelteKit's `fields.amount.as('number')` onto the component — it sets `type="number"` on the visible input, which cannot hold a formatted value. Passing `name="n:amount"` directly gives you the same coercion without the conflict.
+
+A few things to keep in mind:
+
+- The hidden value is the raw JS number string: dot decimal separator regardless of locale, `0.75` (not `75`) for `Percent` style, and the integer value under `exportValueAsInteger`.
+- When the value is empty, the hidden input submits `""` — handle optional fields in your schema, as you would for any native input.
+- Browsers don't autofill hidden inputs, and the visible input no longer has a `name` for autofill heuristics — pass `autocomplete` in the rest props if you need autofill hints.
 
 ---
 
@@ -776,6 +833,8 @@ Both components support controlled mode:
   <button type="submit">Submit</button>
 </form>
 ```
+
+For plain `FormData`/server submission without JS state, pass a `name` prop instead — see [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions).
 
 ### Custom Styling
 
