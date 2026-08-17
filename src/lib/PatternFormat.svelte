@@ -14,6 +14,8 @@
   interface Props {
     value?: string | null
     format?: string
+    name?: string
+    form?: string
     maskChar?: string
     placeholder?: string
     customPatterns?: CustomPatterns
@@ -27,6 +29,8 @@
   let {
     value = $bindable(null),
     format = '',
+    name,
+    form,
     maskChar = '_',
     placeholder = '',
     customPatterns,
@@ -229,5 +233,9 @@
   placeholder={resolvedPlaceholder}
   aria-placeholder={resolvedPlaceholder || undefined}
   inputmode={inferredInputMode}
+  {form}
   {...restProps}
 />
+{#if name}
+  <input type="hidden" {name} {form} value={value ?? ''} />
+{/if}

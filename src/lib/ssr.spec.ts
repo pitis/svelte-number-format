@@ -18,6 +18,49 @@ describe('SSR render (node environment, no DOM)', () => {
     })
 
     expect(result.body).toContain('<input')
+    expect(result.body).not.toContain('type="hidden"')
+  })
+
+  it('renders a hidden raw-value input for NumericFormat when name is set', () => {
+    const result = render(NumericFormat, {
+      props: {
+        name: 'amount',
+        value: 1234.56,
+        locale: 'en-US',
+        options: { precision: 2 }
+      }
+    })
+
+    expect(result.body).toContain('type="hidden"')
+    expect(result.body).toContain('name="amount"')
+    expect(result.body).toContain('value="1234.56"')
+  })
+
+  it('renders a hidden input with a SvelteKit n:-prefixed name intact', () => {
+    const result = render(NumericFormat, {
+      props: {
+        name: 'n:amount',
+        value: 1000,
+        locale: 'en-US'
+      }
+    })
+
+    expect(result.body).toContain('name="n:amount"')
+    expect(result.body).toContain('value="1000"')
+  })
+
+  it('renders a hidden raw-value input for PatternFormat when name is set', () => {
+    const result = render(PatternFormat, {
+      props: {
+        name: 'phone',
+        value: '1234567890',
+        format: MaskPatterns.PHONE_US
+      }
+    })
+
+    expect(result.body).toContain('type="hidden"')
+    expect(result.body).toContain('name="phone"')
+    expect(result.body).toContain('value="1234567890"')
   })
 
   it('renders NumericFormat without locale prop (SSR fallback path)', () => {

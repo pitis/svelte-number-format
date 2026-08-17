@@ -9,6 +9,8 @@
   interface Props {
     value?: number | string | null
     valueType?: NumericValueType
+    name?: string
+    form?: string
     locale?: string
     options?: Partial<NumberInputOptions>
     onInput?: (raw: number | null, formatted: string | null) => void
@@ -20,6 +22,8 @@
   let {
     value = $bindable(null),
     valueType = 'number',
+    name,
+    form,
     locale,
     options = {},
     onInput = () => {},
@@ -54,6 +58,9 @@
   let inputEl: HTMLInputElement | null = null
   let numberInput: NumberInput | null = null
   let isFocused = $state(false)
+  // Raw value mirrored into the hidden input; initialized here (not in an
+  // effect) so SSR output already contains it.
+  let rawValue = $state<number | null>(numericFromValue(value))
 
   $effect(() => {
     if (!inputEl) return
@@ -67,10 +74,12 @@
         ...options
       },
       onInput: (val: NumberInputValue) => {
+        rawValue = val.number ?? null
         onInput?.(val.number ?? null, val.formatted ?? null)
         emitValueChange(val, new Event('input'))
       },
       onChange: (val: NumberInputValue) => {
+        rawValue = val.number ?? null
         value = toValueProp(val.number ?? null)
         onChange?.(val.number ?? null, val.formatted ?? null)
         emitValueChange(val, new Event('change'))
@@ -91,6 +100,9 @@
   $effect(() => {
     if (!numberInput) return
     if (isFocused) return
+    // setValue short-circuits (no callback) when the number is unchanged, so
+    // sync the hidden input's raw value from the prop here as well.
+    rawValue = numericFromValue(value)
     numberInput.setValue(numericFromValue(value))
   })
 
@@ -110,6 +122,7 @@
       } else {
         value = null
       }
+      rawValue = numericFromValue(value)
     } catch (ex) {
       console.error(ex)
     }
@@ -120,5 +133,14 @@
   bind:this={inputEl}
   onfocus={handleFocus}
   onblur={handleBlur}
+  {form}
   {...restProps}
 />
+{#if name}
+  <input
+    type="hidden"
+    {name}
+    {form}
+    value={rawValue != null ? String(rawValue) : ''}
+  />
+{/if}
