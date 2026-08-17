@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] — 2026-08-18
+
+### Fixed
+
+- `NumericFormat` and `PatternFormat` now submit the raw value in native forms
+  ([#15](https://github.com/pitis/svelte-number-format/issues/15)). When `name`
+  is set, the component renders a companion `<input type="hidden">` carrying the
+  raw value (`1234.56` / unmasked digits, never the mask skeleton) and leaves
+  the visible formatted input unnamed, so `FormData`, SvelteKit form actions,
+  and SvelteKit remote form functions (`name="n:amount"` + `z.number()`) receive
+  a parseable value instead of a locale-formatted string. A `form` attribute,
+  when provided, is applied to both inputs. Note: if you relied on forms
+  submitting the _formatted_ string under `name`, that payload is now the raw
+  value.
+
 ## [2.0.0] — 2026-05-03
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "svelte-number-format",
   "description": "Lightweight, reactive number and pattern formatting for Svelte 5. NumericFormat & PatternFormat for inputs, NumericText & PatternText for SSR-safe display.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": {
     "name": "Pitiș Radu",
     "url": "https://github.com/pitis"
