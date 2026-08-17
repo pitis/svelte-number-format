@@ -458,5 +458,153 @@ describe('NumericFormat.svelte', () => {
 
       expect(hiddenOf(container).value).toBe('9999.5')
     })
+
+    it('syncs the hidden input when value is cleared externally', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: { name: 'amount', value: 100, options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('100')
+
+      await rerender({ name: 'amount', value: null, options: { precision: 2 } })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('')
+    })
+
+    it('treats an empty-string value as empty, not zero', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: '', options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('')
+      expect(hiddenOf(container).value).toBe('')
+    })
+
+    it('mirrors disabled onto the hidden input so disabled fields do not submit', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 1234.56, disabled: true }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).disabled).toBe(true)
+      expect(hiddenOf(container).disabled).toBe(true)
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      expect(new FormData(form).get('amount')).toBeNull()
+    })
+
+    it('mirrors the form attribute onto both inputs', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 1234.56, form: 'checkout' }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).getAttribute('form')).toBe('checkout')
+      expect(hiddenOf(container).getAttribute('form')).toBe('checkout')
+    })
+
+    it('clears the hidden input on form.reset() instead of keeping a stale value', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 0, locale: 'en-US' }
+      })
+
+      const visible = visibleOf(container)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      visible.focus()
+      visible.value = '5000'
+      await fireEvent.input(visible)
+      await fireEvent.blur(visible)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('5000')
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('')
+      expect(new FormData(form).get('amount')).toBe('')
+    })
+
+    it('keeps the hidden value dot-decimal in non-US locales', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 1234.56,
+          locale: 'de-DE',
+          options: { precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toContain('1.234,56')
+      expect(hiddenOf(container).value).toBe('1234.56')
+    })
+
+    it('submits the fraction for Percent style, not the displayed percentage', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'rate',
+          value: 0.75,
+          locale: 'en-US',
+          options: { formatStyle: NumberFormatStyle.Percent, precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('75.00%')
+      expect(hiddenOf(container).value).toBe('0.75')
+    })
+
+    it('submits the integer under exportValueAsInteger', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'cents',
+          value: 123456,
+          locale: 'en-US',
+          options: { exportValueAsInteger: true, precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('1,234.56')
+      expect(hiddenOf(container).value).toBe('123456')
+    })
+
+    it('clamps the hidden value to the valueRange the visible input displays', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 100,
+          options: { precision: 2, valueRange: { min: 0, max: 100 } }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('100')
+
+      await rerender({
+        name: 'amount',
+        value: 500,
+        options: { precision: 2, valueRange: { min: 0, max: 100 } }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('100.00')
+      expect(hiddenOf(container).value).toBe('100')
+    })
   })
 })

@@ -863,5 +863,80 @@ describe('PatternFormat.svelte', () => {
       expect(container.querySelectorAll('input').length).toBe(1)
       expect(container.querySelector('input[type="hidden"]')).toBeNull()
     })
+
+    it('normalizes a parent-provided value through the mask before submitting', async () => {
+      const { container } = render(PatternFormat, {
+        props: { name: 'code', value: 'abc123', format: '###-###' }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('123')
+      expect(hiddenOf(container).value).toBe('123')
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      expect(new FormData(form).get('code')).toBe('123')
+    })
+
+    it('mirrors disabled onto the hidden input so disabled fields do not submit', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'phone',
+          value: '4155551234',
+          format: MaskPatterns.PHONE_US,
+          disabled: true
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).disabled).toBe(true)
+      expect(hiddenOf(container).disabled).toBe(true)
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      expect(new FormData(form).get('phone')).toBeNull()
+    })
+
+    it('mirrors the form attribute onto both inputs', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'phone',
+          value: '4155551234',
+          format: MaskPatterns.PHONE_US,
+          form: 'checkout'
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).getAttribute('form')).toBe('checkout')
+      expect(hiddenOf(container).getAttribute('form')).toBe('checkout')
+    })
+
+    it('clears the hidden input on form.reset() instead of keeping a stale value', async () => {
+      const { container } = render(PatternFormat, {
+        props: { name: 'phone', format: MaskPatterns.PHONE_US }
+      })
+
+      const visible = visibleOf(container)
+      visible.focus()
+      visible.value = '4155551234'
+      await fireEvent.input(visible)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('4155551234')
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('')
+      expect(new FormData(form).get('phone')).toBe('')
+    })
   })
 })
