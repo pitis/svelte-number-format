@@ -307,4 +307,304 @@ describe('NumericFormat.svelte', () => {
       expect(input.value).toBe('9,999.50')
     })
   })
+
+  describe('Native form submission (regression: issue #15)', () => {
+    const visibleOf = (container: HTMLElement) =>
+      container.querySelector('input:not([type="hidden"])') as HTMLInputElement
+    const hiddenOf = (container: HTMLElement) =>
+      container.querySelector('input[type="hidden"]') as HTMLInputElement
+
+    it('renders a hidden input with the raw value and keeps the visible input unnamed', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 1234.56,
+          locale: 'en-US',
+          options: { precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const visible = visibleOf(container)
+      const hidden = hiddenOf(container)
+      expect(visible.value).toBe('1,234.56')
+      expect(visible.getAttribute('name')).toBeNull()
+      expect(hidden).toBeTruthy()
+      expect(hidden.getAttribute('name')).toBe('amount')
+      expect(hidden.value).toBe('1234.56')
+    })
+
+    it('submits the raw value through FormData', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 1234.56,
+          locale: 'en-US',
+          options: { precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+
+      expect(new FormData(form).get('amount')).toBe('1234.56')
+    })
+
+    it('does not render a hidden input without a name', async () => {
+      const { container } = render(NumericFormat, {
+        props: { value: 100, options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(container.querySelectorAll('input').length).toBe(1)
+      expect(container.querySelector('input[type="hidden"]')).toBeNull()
+    })
+
+    it('keeps the hidden input in sync while typing, before blur', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 0,
+          locale: 'en-US',
+          options: { precision: 2 }
+        }
+      })
+
+      const visible = visibleOf(container)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      visible.focus()
+      visible.value = '9999.99'
+      await fireEvent.input(visible)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('9999.99')
+
+      await fireEvent.blur(visible)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visible.value).toBe('9,999.99')
+      expect(hiddenOf(container).value).toBe('9999.99')
+    })
+
+    it('renders an empty hidden value when value is null', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: null }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const hidden = hiddenOf(container)
+      expect(hidden).toBeTruthy()
+      expect(hidden.value).toBe('')
+    })
+
+    it('carries the raw value when valueType="string"', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: '1234.5',
+          valueType: 'string',
+          options: { precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('1234.5')
+    })
+
+    it('routes name to the hidden input when props arrive via spread (Formsnap shape)', async () => {
+      const formsnapLikeProps = {
+        name: 'amount',
+        id: 'amount-field',
+        'aria-describedby': 'amount-error',
+        value: 42
+      }
+      const { container } = render(NumericFormat, {
+        props: { ...formsnapLikeProps }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const visible = visibleOf(container)
+      const hidden = hiddenOf(container)
+      expect(visible.getAttribute('name')).toBeNull()
+      expect(visible.id).toBe('amount-field')
+      expect(visible.getAttribute('aria-describedby')).toBe('amount-error')
+      expect(hidden.getAttribute('name')).toBe('amount')
+      expect(hidden.value).toBe('42')
+    })
+
+    it('syncs the hidden input on external value updates', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: { name: 'amount', value: 100, options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('100')
+
+      await rerender({
+        name: 'amount',
+        value: 9999.5,
+        options: { precision: 2 }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('9999.5')
+    })
+
+    it('syncs the hidden input when value is cleared externally', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: { name: 'amount', value: 100, options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('100')
+
+      await rerender({ name: 'amount', value: null, options: { precision: 2 } })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('')
+    })
+
+    it('treats an empty-string value as empty, not zero', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: '', options: { precision: 2 } }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('')
+      expect(hiddenOf(container).value).toBe('')
+    })
+
+    it('mirrors disabled onto the hidden input so disabled fields do not submit', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 1234.56, disabled: true }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).disabled).toBe(true)
+      expect(hiddenOf(container).disabled).toBe(true)
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      expect(new FormData(form).get('amount')).toBeNull()
+    })
+
+    it('mirrors the form attribute onto both inputs', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 1234.56, form: 'checkout' }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).getAttribute('form')).toBe('checkout')
+      expect(hiddenOf(container).getAttribute('form')).toBe('checkout')
+    })
+
+    it('clears the hidden input on form.reset() instead of keeping a stale value', async () => {
+      const { container } = render(NumericFormat, {
+        props: { name: 'amount', value: 0, locale: 'en-US' }
+      })
+
+      const visible = visibleOf(container)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      visible.focus()
+      visible.value = '5000'
+      await fireEvent.input(visible)
+      await fireEvent.blur(visible)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('5000')
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(hiddenOf(container).value).toBe('')
+      expect(new FormData(form).get('amount')).toBe('')
+    })
+
+    it('keeps the hidden value dot-decimal in non-US locales', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 1234.56,
+          locale: 'de-DE',
+          options: { precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toContain('1.234,56')
+      expect(hiddenOf(container).value).toBe('1234.56')
+    })
+
+    it('submits the fraction for Percent style, not the displayed percentage', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'rate',
+          value: 0.75,
+          locale: 'en-US',
+          options: { formatStyle: NumberFormatStyle.Percent, precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('75.00%')
+      expect(hiddenOf(container).value).toBe('0.75')
+    })
+
+    it('submits the integer under exportValueAsInteger', async () => {
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'cents',
+          value: 123456,
+          locale: 'en-US',
+          options: { exportValueAsInteger: true, precision: 2 }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('1,234.56')
+      expect(hiddenOf(container).value).toBe('123456')
+    })
+
+    it('clamps the hidden value to the valueRange the visible input displays', async () => {
+      const { container, rerender } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 100,
+          options: { precision: 2, valueRange: { min: 0, max: 100 } }
+        }
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(hiddenOf(container).value).toBe('100')
+
+      await rerender({
+        name: 'amount',
+        value: 500,
+        options: { precision: 2, valueRange: { min: 0, max: 100 } }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(visibleOf(container).value).toBe('100.00')
+      expect(hiddenOf(container).value).toBe('100')
+    })
+  })
 })

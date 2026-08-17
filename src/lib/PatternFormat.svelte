@@ -14,6 +14,9 @@
   interface Props {
     value?: string | null
     format?: string
+    name?: string
+    form?: string
+    disabled?: boolean
     maskChar?: string
     placeholder?: string
     customPatterns?: CustomPatterns
@@ -27,6 +30,9 @@
   let {
     value = $bindable(null),
     format = '',
+    name,
+    form,
+    disabled,
     maskChar = '_',
     placeholder = '',
     customPatterns,
@@ -63,10 +69,37 @@
   )
   const resolvedPlaceholder = $derived(placeholder || autoPlaceholder)
   const inferredInputMode = $derived(inferInputMode(pattern))
+  // The hidden input must submit the same mask-filtered raw string the
+  // visible input displays — a parent-provided value never goes through
+  // commit(), so normalize it here.
+  const submittedValue = $derived(
+    value == null || value === ''
+      ? ''
+      : pattern
+        ? applyMask(value, pattern, customPatterns).raw
+        : value
+  )
 
   let inputEl: HTMLInputElement | null = null
+  let hiddenEl = $state<HTMLInputElement | null>(null)
   let isFocused = false
   let isComposing = false
+
+  // Native form reset restores the hidden input to its stale value attribute
+  // (Svelte keeps the attribute — i.e. defaultValue — in step with the current
+  // value). Clear our state on reset instead, so the submitted value matches
+  // the cleared visible input. Listens on document (reset bubbles) so the
+  // form owner is resolved at event time, not mount time.
+  $effect(() => {
+    if (!hiddenEl) return
+    const onReset = (e: Event) => {
+      if (hiddenEl && e.target === hiddenEl.form) {
+        value = null
+      }
+    }
+    document.addEventListener('reset', onReset)
+    return () => document.removeEventListener('reset', onReset)
+  })
 
   function formatValue(val: string | null): string {
     if (!val || !pattern) return val || ''
@@ -229,5 +262,17 @@
   placeholder={resolvedPlaceholder}
   aria-placeholder={resolvedPlaceholder || undefined}
   inputmode={inferredInputMode}
+  {form}
+  {disabled}
   {...restProps}
 />
+{#if name}
+  <input
+    bind:this={hiddenEl}
+    type="hidden"
+    {name}
+    {form}
+    {disabled}
+    value={submittedValue}
+  />
+{/if}
