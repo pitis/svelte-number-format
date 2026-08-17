@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.1] — 2026-08-18
+## [2.1.0] — 2026-08-18
 
 ### Fixed
 
@@ -14,10 +14,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raw value (`1234.56` / unmasked digits, never the mask skeleton) and leaves
   the visible formatted input unnamed, so `FormData`, SvelteKit form actions,
   and SvelteKit remote form functions (`name="n:amount"` + `z.number()`) receive
-  a parseable value instead of a locale-formatted string. A `form` attribute,
-  when provided, is applied to both inputs. Note: if you relied on forms
-  submitting the _formatted_ string under `name`, that payload is now the raw
-  value.
+  a parseable value instead of a locale-formatted string.
+- An empty-string `value` no longer coerces to `0` — it renders and submits as
+  empty, matching native inputs.
+- `PatternFormat` normalizes a parent-provided `value` through the mask before
+  submitting, so the payload always matches what the visible input displays.
+- The hidden value follows `valueRange` clamping, so the payload always matches
+  the clamped value the visible input displays.
+
+### Added
+
+- `form` prop on both components, applied to the visible and hidden inputs for
+  out-of-form association.
+- `disabled` prop on both components, mirrored onto the hidden input so
+  disabled fields are excluded from submission like any native control.
+
+### Changed
+
+- **`name` no longer reaches the visible input** — it lands on the hidden
+  raw-value input instead. Consequences for existing users passing `name`:
+  forms receive the raw value instead of the formatted string; CSS or test
+  selectors like `input[name="amount"]` now match the hidden input (target the
+  visible input by `id` or `input:not([type="hidden"])`); with `id` equal to
+  `name`, `form.elements[name]` returns a `RadioNodeList` of both elements.
+  See MIGRATION.md.
+- `form.reset()` now clears the field: both inputs empty out and the bound
+  `value` is set to `null` (previously the bound value went stale).
 
 ## [2.0.0] — 2026-05-03
 
