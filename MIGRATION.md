@@ -1,5 +1,36 @@
 # Migration Guide
 
+## v2.0 → v2.1
+
+No APIs were removed. One behavior changed for components that receive a
+`name` prop; if you never pass `name`, nothing changes.
+
+### `name` now lands on a hidden raw-value input
+
+When `name` is set, the component renders **two** inputs: the visible
+formatted input (now unnamed) and a companion `<input type="hidden">` that
+carries the raw value under your `name`. This fixes native `FormData` and
+SvelteKit remote-function submission
+([#15](https://github.com/pitis/svelte-number-format/issues/15)), but has
+side effects if you targeted the input by name:
+
+```diff
+- page.fill('input[name="amount"]', '1000')   // now matches the hidden input
++ page.fill('#amount', '1000')                // target the visible input by id
+```
+
+- Forms submit the raw value (`1234.56`, unmasked digits) instead of the
+  formatted string. If your backend expected `"1,234.56"`, adjust it to
+  parse the raw value.
+- CSS rules and test selectors using `input[name=…]` now match the hidden
+  input. Select the visible input by `id`, by label association, or with
+  `input:not([type="hidden"])`.
+- If the visible input's `id` equals the `name`, `form.elements[name]`
+  returns a `RadioNodeList` containing both elements. Read values via
+  `new FormData(form)` instead of `form.elements[name].value`.
+- `form.reset()` clears the field and sets the bound `value` to `null`
+  (previously the bound value went stale after a reset).
+
 ## v1.x → v2.0
 
 v2.0 removes three long-deprecated APIs. None of them have functional

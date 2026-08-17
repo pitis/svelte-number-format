@@ -99,6 +99,7 @@ Locale-aware number formatting built on [intl-number-input](https://www.npmjs.co
 | `valueType`     | `'number' \| 'string'`                                     | `'number'`      | Whether the bound `value` is emitted as a `number` or a decimal `string`.                                                                                                                                                                                                          |
 | `name`          | `string`                                                   | `undefined`     | When set, a companion `<input type="hidden">` with this name carries the **raw** numeric value (e.g. `1234.56`) for native form submission; the visible formatted input stays unnamed. See [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions). |
 | `form`          | `string`                                                   | `undefined`     | Form `id` for out-of-form association. Applied to both the visible and hidden inputs.                                                                                                                                                                                              |
+| `disabled`      | `boolean`                                                  | `undefined`     | Disables the input. Mirrored onto the hidden input so disabled fields are excluded from submission.                                                                                                                                                                                |
 | `locale`        | `string \| undefined`                                      | resolved lazily | Locale string. Defaults to `navigator.language` on the client, `'en-US'` during SSR.                                                                                                                                                                                               |
 | `options`       | `Partial<NumberInputOptions>`                              | `{}`            | Formatting options (see below).                                                                                                                                                                                                                                                    |
 | `onInput`       | `(raw: number \| null, formatted: string \| null) => void` | `undefined`     | Callback fired on every keystroke.                                                                                                                                                                                                                                                 |
@@ -267,6 +268,7 @@ Pattern-based input masking for structured text inputs.
 | `format`               | `string`                                                   | `''`        | Pattern string (e.g. `'(###) ###-####'`). See [pattern characters](#pattern-characters).                                                                                                                                                                                                  |
 | `name`                 | `string`                                                   | `undefined` | When set, a companion `<input type="hidden">` with this name carries the **raw** unmasked value (never the mask skeleton) for native form submission; the visible masked input stays unnamed. See [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions). |
 | `form`                 | `string`                                                   | `undefined` | Form `id` for out-of-form association. Applied to both the visible and hidden inputs.                                                                                                                                                                                                     |
+| `disabled`             | `boolean`                                                  | `undefined` | Disables the input. Mirrored onto the hidden input so disabled fields are excluded from submission.                                                                                                                                                                                       |
 | `mask`                 | `string`                                                   | `''`        | **Deprecated** — use `format`. Emits a dev-mode warning. Removed in 2.0.                                                                                                                                                                                                                  |
 | `maskChar`             | `string`                                                   | `'_'`       | Character shown in auto-generated placeholder for pattern positions.                                                                                                                                                                                                                      |
 | `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                                                                                                                                                                                                                           |
@@ -708,7 +710,7 @@ export const schema = z.object({
 </form>
 ```
 
-The Felte integration needs a tiny `$effect` bridge because Felte's internal store is string-keyed form data populated by DOM `name=…` attributes, while our components emit typed values via `bind:value`. Both Superforms and Formsnap avoid this because they already consume a reactive store. Note that since v2.0.1 the `name` prop lands on a hidden input carrying the raw value (see below), which is what Felte reads.
+The Felte integration needs a tiny `$effect` bridge because Felte's internal store is string-keyed form data populated by DOM `name=…` attributes, while our components emit typed values via `bind:value`. Both Superforms and Formsnap avoid this because they already consume a reactive store. Note that since v2.1.0 the `name` prop lands on a hidden input carrying the raw value (see below), so Felte's initial DOM scan picks up the raw value instead of the formatted string — but hidden-input updates fire no events, so the `setFields` bridge above is still required to keep Felte's store in sync while typing.
 
 ---
 
@@ -724,9 +726,11 @@ When you pass a `name` prop, both components render **two** inputs: the visible 
 -->
 ```
 
+During SSR the hidden input already carries the raw value; the visible input is formatted on hydration.
+
 ### SvelteKit remote form functions
 
-SvelteKit's experimental remote `form` functions coerce a field from string to number when its name has the `n:` prefix. Pass that prefix directly and declare a plain number in your schema:
+SvelteKit's experimental remote `form` functions (as of SvelteKit 2.27+) coerce a field from string to number when its name has the `n:` prefix. Pass that prefix directly and declare a plain number in your schema — note the prefix is an internal convention of an explicitly experimental SvelteKit feature and may change without notice:
 
 ```ts
 // data.remote.ts
@@ -759,9 +763,14 @@ Do **not** spread SvelteKit's `fields.amount.as('number')` onto the component �
 
 A few things to keep in mind:
 
-- The hidden value is the raw JS number string: dot decimal separator regardless of locale, `0.75` (not `75`) for `Percent` style, and the integer value under `exportValueAsInteger`.
-- When the value is empty, the hidden input submits `""` — handle optional fields in your schema, as you would for any native input.
+- The hidden value is the raw JS number string: dot decimal separator regardless of locale, `0.75` (not `75`) for `Percent` style, and the integer value under `exportValueAsInteger`. With `valueType="string"` the submitted value is the normalized number string (`"10.50"` submits as `"10.5"`).
+- When the value is empty, the hidden input submits `""`. For `n:`-prefixed fields SvelteKit maps `""` to `undefined` before validation, so declare optional number fields as `z.number().optional()`.
+- `disabled` is mirrored onto the hidden input, so a disabled field is excluded from submission like any native control. `form` is mirrored too, for out-of-form association.
+- `form.reset()` clears the field: both inputs empty out and the bound `value` is set to `null` (reset does not restore the initial prop value).
 - Browsers don't autofill hidden inputs, and the visible input no longer has a `name` for autofill heuristics — pass `autocomplete` in the rest props if you need autofill hints.
+- If you give the visible input an `id` equal to the `name` (the usual `<label for>` pattern), `form.elements[name]` returns a `RadioNodeList` of both elements instead of a single input — `FormData` is unaffected, but read values via `FormData` or distinct `id`s rather than `form.elements[name].value`.
+- With a `name` set, the component renders two sibling elements — CSS relying on `:only-child`, `:last-child`, or `input + …` combinators around the component may need adjusting.
+- `PatternFormat` with `allowEmptyFormatting` + `required`: the visible skeleton satisfies native `required` validation while the hidden input submits `""` — validate the raw value server-side rather than relying on `required`.
 
 ---
 
