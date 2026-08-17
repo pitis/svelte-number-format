@@ -38,5 +38,4 @@ export const MaskPatterns = {
 } as const
 
 export type MaskPattern =
-  | (typeof MaskPatterns)[keyof typeof MaskPatterns]
-  | string
+  (typeof MaskPatterns)[keyof typeof MaskPatterns] | string

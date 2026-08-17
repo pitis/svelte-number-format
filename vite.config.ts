@@ -3,7 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
 export default defineConfig(({ mode }) => ({
-  plugins: mode === 'test' ? [svelte({ hot: false })] : [sveltekit()],
+  plugins: mode === 'test' ? [svelte()] : [sveltekit()],
 
   ssr: {
     noExternal: ['sveltekit-superforms', 'formsnap']

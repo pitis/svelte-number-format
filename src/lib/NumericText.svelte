@@ -42,10 +42,7 @@
       if (opts.currency) out.currency = opts.currency
       if (opts.currencyDisplay)
         out.currencyDisplay = opts.currencyDisplay as
-          | 'symbol'
-          | 'code'
-          | 'name'
-          | 'narrowSymbol'
+          'symbol' | 'code' | 'name' | 'narrowSymbol'
       if (opts.accountingSign) {
         out.currencySign = 'accounting'
       }
