@@ -4,8 +4,8 @@
 [![Deploy](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml/badge.svg)](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml)
 [![npm version](https://badge.fury.io/js/svelte-number-format.svg)](https://www.npmjs.com/package/svelte-number-format)
 
-**Svelte Number Format** is a lightweight and reactive input component library for [Svelte 5](https://svelte.dev).  
-Inspired by [react-number-format](https://www.npmjs.com/package/react-number-format), it provides two powerful components for handling formatted inputs with full caret stability and two-way binding.
+**svelte-number-format** is a lightweight, reactive input-formatting library for [Svelte 5](https://svelte.dev): currency inputs, percentages, plain numbers, and pattern-based input masks (phone, credit card, dates) with caret-stable editing, two-way binding and `Intl.NumberFormat` localization.  
+Inspired by [react-number-format](https://www.npmjs.com/package/react-number-format), with a compatible `onValueChange` API.
 
 ## Features
 
@@ -29,6 +29,7 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 - `allowEmptyFormatting` to show the mask skeleton before typing
 - SSR-safe (no `navigator` at module eval)
 - A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
+- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.5 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
 
 🌍 **Internationalization**
 
@@ -956,6 +957,42 @@ import type {
   ValueChangeSource
 } from 'svelte-number-format'
 ```
+
+---
+
+## FAQ
+
+### How do I add a currency input in Svelte 5?
+
+Install `svelte-number-format` and use `NumericFormat` with `formatStyle: Currency` — see the [Quick Start](#quick-start) above. The input formats as you type (`1234.56` → `$1,234.56`), keeps the caret stable, and `bind:value` gives you the plain number, not the formatted string.
+
+### Does it work with Svelte 4?
+
+No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and declares a `svelte@^5` peer dependency. There is no Svelte 4 build.
+
+### How big is it?
+
+`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.5 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use.
+
+### How is it different from react-number-format?
+
+Same component names, same `onValueChange` payload, same pattern tokens — but idiomatic Svelte: `bind:value` instead of controlled-state wiring, and locale-driven separators (`locale="de-DE"` → `1.234,56 €`) instead of manual `thousandSeparator`/`prefix` props. The [migration table](#migrating-from-react-number-format) maps every prop.
+
+### How is it different from svelte-currency-input?
+
+[svelte-currency-input](https://github.com/fmaclen/svelte-currency-input) is a focused, well-made currency-only field — if that's all you need, it's a fine choice. `svelte-number-format` covers currency **plus** percent and decimal inputs, pattern masks (phone, credit card, dates, custom tokens), display-only components, and mirrors react-number-format's API.
+
+### Does it work with Superforms, Formsnap, or Felte?
+
+Yes — both inputs expose plain `bind:value`, so they drop into any Svelte form library. There are [live demos](https://pitis.github.io/svelte-number-format/demos/) with worked source for Superforms, Formsnap, Felte, and Zod validation. See [Form-library integration](#form-library-integration).
+
+### Is it SSR-safe with SvelteKit?
+
+Yes. No browser APIs run at module evaluation; the default locale resolves lazily (`navigator.language` on the client, `'en-US'` on the server). Components render on the server, format on hydration — see [SSR / SvelteKit](#ssr--sveltekit).
+
+### Can I submit the raw value in a native form?
+
+Yes — pass a `name` prop and a hidden input carries the raw value (`1234.56`, not `$1,234.56`) into `FormData`, form actions, and SvelteKit remote functions. See [Native forms](#native-forms--sveltekit-remote-functions).
 
 ---
 
