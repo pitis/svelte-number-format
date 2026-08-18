@@ -116,7 +116,7 @@ The `options` prop accepts these properties:
 | `formatStyle`       | `NumberFormatStyle`              | `Decimal`, `Currency`, or `Percent`                                           |
 | `currency`          | `string`                         | Currency code (e.g., `'USD'`, `'EUR'`, `'GBP'`) - required for Currency style |
 | `precision`         | `number`                         | Number of decimal places                                                      |
-| `valueRange`        | `{ min?: number, max?: number }` | Min/max value constraints                                                     |
+| `valueRange`        | `{ min?: number, max?: number }` | Min/max constraints. Out-of-range values are silently clamped on blur         |
 | `autoDecimalDigits` | `boolean`                        | Automatically position decimal (e.g., typing `1234` → `12.34`)                |
 
 ### NumberFormatStyle Enum

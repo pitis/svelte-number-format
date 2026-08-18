@@ -58,6 +58,10 @@
     {#if $errors.amount}
       <p class="field-error">{$errors.amount[0]}</p>
     {/if}
+    <p class="field-hint">
+      Demo caps this field at $1,000,000 via <code>valueRange</code>: larger
+      amounts clamp to the max on blur.
+    </p>
   </div>
 
   <div class="field">
@@ -164,6 +168,16 @@
     font-size: 0.78rem;
     color: var(--signal);
     margin: 0;
+  }
+  .field-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin: 0;
+  }
+  .field-hint code {
+    font-size: inherit;
+    color: var(--ink-dim);
   }
   .submit {
     align-self: flex-start;
