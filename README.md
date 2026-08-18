@@ -707,11 +707,25 @@ import { zod4Client } from 'sveltekit-superforms/adapters' // Zod 4
     }
   })
 
+  // Skip the mount run: initialValues already seeded the store, and touching
+  // the fields here would surface validation errors before any interaction.
+  let amountSeeded = false
+  let phoneSeeded = false
   $effect(() => {
-    setFields('amount', amount ?? 0, true)
+    const v = amount ?? 0
+    if (!amountSeeded) {
+      amountSeeded = true
+      return
+    }
+    setFields('amount', v, true)
   })
   $effect(() => {
-    setFields('phone', phone ?? '', true)
+    const v = phone ?? ''
+    if (!phoneSeeded) {
+      phoneSeeded = true
+      return
+    }
+    setFields('phone', v, true)
   })
 </script>
 

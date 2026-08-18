@@ -21,12 +21,27 @@
     }
   })
 
-  // Sync local bindable state → Felte's internal form store.
+  // Sync local bindable state → Felte's internal form store. The mount run
+  // is skipped: initialValues already seeded the store, and setFields with
+  // shouldTouch would mark the fields touched — surfacing validation errors
+  // before the user ever interacts.
+  let amountSeeded = false
+  let phoneSeeded = false
   $effect(() => {
-    setFields('amount', amount ?? 0, true)
+    const v = amount ?? 0
+    if (!amountSeeded) {
+      amountSeeded = true
+      return
+    }
+    setFields('amount', v, true)
   })
   $effect(() => {
-    setFields('phone', phone ?? '', true)
+    const v = phone ?? ''
+    if (!phoneSeeded) {
+      phoneSeeded = true
+      return
+    }
+    setFields('phone', v, true)
   })
 </script>
 
