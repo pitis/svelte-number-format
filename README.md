@@ -4,8 +4,8 @@
 [![Deploy](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml/badge.svg)](https://github.com/pitis/svelte-number-format/actions/workflows/deploy.yml)
 [![npm version](https://badge.fury.io/js/svelte-number-format.svg)](https://www.npmjs.com/package/svelte-number-format)
 
-**Svelte Number Format** is a lightweight and reactive input component library for [Svelte 5](https://svelte.dev).  
-Inspired by [react-number-format](https://www.npmjs.com/package/react-number-format), it provides two powerful components for handling formatted inputs with full caret stability and two-way binding.
+**svelte-number-format** is a lightweight, reactive input-formatting library for [Svelte 5](https://svelte.dev): currency inputs, percentages, plain numbers, and pattern-based input masks (phone, credit card, dates) with caret-stable editing, two-way binding and `Intl.NumberFormat` localization.  
+Inspired by [react-number-format](https://www.npmjs.com/package/react-number-format), with a compatible `onValueChange` API.
 
 ## Features
 
@@ -23,12 +23,13 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 - Svelte 5 native (runes only)
 - Caret position stability across formatting
 - Paste handling that re-formats the whole clipboard buffer in one shot
-- IME (composition) aware — doesn't break CJK input
+- IME (composition) aware masking — `PatternFormat` doesn't break CJK input
 - Rich `onValueChange` callback with `{ floatValue, formattedValue, value }` (react-number-format compatible)
 - Custom pattern tokens via `customPatterns`
 - `allowEmptyFormatting` to show the mask skeleton before typing
 - SSR-safe (no `navigator` at module eval)
 - A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
+- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.6 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
 
 🌍 **Internationalization**
 
@@ -111,13 +112,15 @@ Locale-aware number formatting built on [intl-number-input](https://www.npmjs.co
 
 The `options` prop accepts these properties:
 
-| Option              | Type                             | Description                                                                   |
-| ------------------- | -------------------------------- | ----------------------------------------------------------------------------- |
-| `formatStyle`       | `NumberFormatStyle`              | `Decimal`, `Currency`, or `Percent`                                           |
-| `currency`          | `string`                         | Currency code (e.g., `'USD'`, `'EUR'`, `'GBP'`) - required for Currency style |
-| `precision`         | `number`                         | Number of decimal places                                                      |
-| `valueRange`        | `{ min?: number, max?: number }` | Min/max constraints. Out-of-range values are silently clamped on blur         |
-| `autoDecimalDigits` | `boolean`                        | Automatically position decimal (e.g., typing `1234` → `12.34`)                |
+| Option              | Type                                       | Description                                                                   |
+| ------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `formatStyle`       | `NumberFormatStyle`                        | `Decimal`, `Currency`, `Percent`, or `Unit`                                   |
+| `currency`          | `string`                                   | Currency code (e.g., `'USD'`, `'EUR'`, `'GBP'`) - required for Currency style |
+| `precision`         | `number \| { min?: number, max?: number }` | Number of decimal places, fixed or as a range                                 |
+| `valueRange`        | `{ min?: number, max?: number }`           | Min/max constraints. Out-of-range values are silently clamped on blur         |
+| `autoDecimalDigits` | `boolean`                                  | Automatically position decimal (e.g., typing `1234` → `12.34`)                |
+
+These are the commonly used options. `NumericFormat` passes the whole object through to [intl-number-input](https://www.npmjs.com/package/intl-number-input), so every `NumberInputOptions` field works — `useGrouping`, `exportValueAsInteger`, `currencyDisplay`, `unit`/`unitDisplay`, `autoSign`, `step`, and the on-focus display toggles (`hidePrefixOrSuffixOnFocus`, `hideGroupingSeparatorOnFocus`, `hideNegligibleDecimalDigitsOnFocus`).
 
 ### NumberFormatStyle Enum
 
@@ -127,6 +130,7 @@ import { NumberFormatStyle } from 'svelte-number-format'
 NumberFormatStyle.Decimal // Plain number with locale formatting
 NumberFormatStyle.Currency // Currency with symbol ($, €, £, etc.)
 NumberFormatStyle.Percent // Percentage (0.75 → 75%)
+NumberFormatStyle.Unit // Unit formatting — pair with options.unit (e.g. 'kilometer')
 ```
 
 ### Examples
@@ -269,7 +273,6 @@ Pattern-based input masking for structured text inputs.
 | `name`                 | `string`                                                   | `undefined` | When set, a companion `<input type="hidden">` with this name carries the **raw** unmasked value (never the mask skeleton) for native form submission; the visible masked input stays unnamed. See [Native forms & SvelteKit remote functions](#native-forms--sveltekit-remote-functions). |
 | `form`                 | `string`                                                   | `undefined` | Form `id` for out-of-form association. Applied to both the visible and hidden inputs.                                                                                                                                                                                                     |
 | `disabled`             | `boolean`                                                  | `undefined` | Disables the input. Mirrored onto the hidden input so disabled fields are excluded from submission.                                                                                                                                                                                       |
-| `mask`                 | `string`                                                   | `''`        | **Deprecated** — use `format`. Emits a dev-mode warning. Removed in 2.0.                                                                                                                                                                                                                  |
 | `maskChar`             | `string`                                                   | `'_'`       | Character shown in auto-generated placeholder for pattern positions.                                                                                                                                                                                                                      |
 | `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                                                                                                                                                                                                                           |
 | `customPatterns`       | `Record<string, RegExp>`                                   | `undefined` | Additional pattern tokens. See [Custom patterns](#custom-patterns).                                                                                                                                                                                                                       |
@@ -335,7 +338,6 @@ MaskPatterns.ZIP_US_PLUS4 // #####-####
 ```typescript
 MaskPatterns.IPV4 // ###.###.###.###
 MaskPatterns.MAC_ADDRESS // ##:##:##:##:##:##
-MaskPatterns.HEX_COLOR // #******
 ```
 
 ### Examples
@@ -473,9 +475,11 @@ interface NumberFormatValues {
 
 interface SourceInfo {
   event: Event | undefined
-  source: 'event' | 'prop' // 'prop' if triggered by external value change
+  source: 'event' | 'prop'
 }
 ```
+
+> **Note:** `source` is currently always `'event'` — `NumericFormat` reports prop-driven updates with a synthetic event, and `PatternFormat` doesn't fire `onValueChange` for external `value` changes. The `'prop'` variant is reserved.
 
 ```svelte
 <script lang="ts">
@@ -552,7 +556,7 @@ On focus, the caret lands at the first fillable slot.
 
 Both input components forward all HTML attributes via spread, so `aria-invalid`, `aria-describedby`, `aria-label`, `aria-errormessage`, and `role` work out of the box. In addition:
 
-- `PatternFormat` sets `aria-placeholder` to the auto-generated mask string (e.g. `(___) ___-____`) so screen readers announce the expected shape.
+- `PatternFormat` sets `aria-placeholder` to the resolved placeholder — your `placeholder` prop if provided, otherwise the auto-generated mask string (e.g. `(___) ___-____`) — so screen readers announce the expected shape.
 - `PatternFormat` auto-infers `inputmode` from the pattern (`numeric` / `tel` / `text`) to trigger the right mobile keyboard. Consumer-supplied `inputmode` wins.
 - `NumericFormat` gets its `inputmode` from the underlying formatter (`decimal` by default).
 
@@ -616,7 +620,7 @@ Both inputs use plain `bind:value` on a number (`NumericFormat`) or a string of 
 - [`/demos/felte`](https://pitis.github.io/svelte-number-format/demos/felte/) — [Felte](https://felte.dev) with the Zod validator, fully client-side
 - [`/demos/zod`](https://pitis.github.io/svelte-number-format/demos/zod/) — the same values validated through Zod 3 and Zod 4 side by side, plus the API differences that matter
 
-All three share one schema:
+The three form-library demos share one schema:
 
 ```ts
 import { z } from 'zod'
@@ -815,23 +819,23 @@ A few things to keep in mind:
 
 svelte-number-format mirrors react-number-format's API where possible. The big differences come from Svelte's idioms rather than missing features.
 
-| react-number-format                    | svelte-number-format                      | Notes                                                                                |
-| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------ |
-| `<NumericFormat />`                    | `<NumericFormat />`                       | Same name, same concept.                                                             |
-| `<PatternFormat />`                    | `<PatternFormat />`                       | Same name, same concept.                                                             |
-| `<NumericFormat displayType="text" />` | `<NumericText />`                         | Separate component instead of a prop.                                                |
-| `<PatternFormat displayType="text" />` | `<PatternText />`                         | Same idea for pattern masks.                                                         |
-| `value={state}` + `onValueChange`      | `bind:value={state}` _or_ `onValueChange` | Use Svelte's `bind:value` — simpler, no need to wire state.                          |
-| `onValueChange={(v) => ...}`           | `onValueChange={(v, s) => ...}`           | Payload shape is the same: `{ floatValue, formattedValue, value }`.                  |
-| `format="(###) ###-####"`              | `format="(###) ###-####"`                 | Same token characters (`#`, but not `A`/`*` in react-number-format's default build). |
-| `format` with custom patterns          | `customPatterns={{ H: /[0-9a-f]/ }}`      | Pass the regex map as a prop.                                                        |
-| `allowEmptyFormatting`                 | `allowEmptyFormatting`                    | Same semantics.                                                                      |
-| `mask="_"`                             | `maskChar="_"`                            | Renamed to avoid collision with the legacy `mask` prop.                              |
-| `thousandSeparator`                    | `options.useGrouping`                     | Locale-aware — set `locale` instead of separators.                                   |
-| `decimalSeparator`                     | Locale-aware                              | Set `locale="de-DE"` to get `1.234,56`.                                              |
-| `thousandsGroupStyle`                  | Locale-aware                              | Locales handle grouping (`en-IN` → `1,23,456`).                                      |
-| `prefix` / `suffix`                    | `options.formatStyle: Currency`           | For currency, use `formatStyle` + `currency` for locale-correct symbols.             |
-| `valueIsNumericString`                 | `valueType="string"`                      | Emits the bound value as a string when set.                                          |
+| react-number-format                    | svelte-number-format                      | Notes                                                                                                                          |
+| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `<NumericFormat />`                    | `<NumericFormat />`                       | Same name, same concept.                                                                                                       |
+| `<PatternFormat />`                    | `<PatternFormat />`                       | Same name, same concept.                                                                                                       |
+| `<NumericFormat displayType="text" />` | `<NumericText />`                         | Separate component instead of a prop.                                                                                          |
+| `<PatternFormat displayType="text" />` | `<PatternText />`                         | Same idea for pattern masks.                                                                                                   |
+| `value={state}` + `onValueChange`      | `bind:value={state}` _or_ `onValueChange` | Use Svelte's `bind:value` — simpler, no need to wire state.                                                                    |
+| `onValueChange={(v) => ...}`           | `onValueChange={(v, s) => ...}`           | Payload shape is the same: `{ floatValue, formattedValue, value }`.                                                            |
+| `format="(###) ###-####"`              | `format="(###) ###-####"`                 | Same token characters (`#`, but not `A`/`*` in react-number-format's default build).                                           |
+| `format` with custom patterns          | `customPatterns={{ H: /[0-9a-f]/ }}`      | Pass the regex map as a prop.                                                                                                  |
+| `allowEmptyFormatting`                 | `allowEmptyFormatting`                    | Same semantics.                                                                                                                |
+| `mask="_"`                             | `maskChar="_"`                            | Renamed. Only styles the placeholder/skeleton — it doesn't interleave with typed characters like react-number-format's `mask`. |
+| `thousandSeparator`                    | `options.useGrouping`                     | Locale-aware — set `locale` instead of separators.                                                                             |
+| `decimalSeparator`                     | Locale-aware                              | Set `locale="de-DE"` to get `1.234,56`.                                                                                        |
+| `thousandsGroupStyle`                  | Locale-aware                              | Locales handle grouping (`en-IN` → `1,23,456`).                                                                                |
+| `prefix` / `suffix`                    | `options.formatStyle: Currency`           | For currency, use `formatStyle` + `currency` for locale-correct symbols.                                                       |
+| `valueIsNumericString`                 | `valueType="string"`                      | Emits the bound value as a string when set.                                                                                    |
 
 ---
 
@@ -959,11 +963,47 @@ import type {
 
 ---
 
+## FAQ
+
+### How do I add a currency input in Svelte 5?
+
+Install `svelte-number-format` and use `NumericFormat` with `options={{ formatStyle: NumberFormatStyle.Currency, currency: 'USD', precision: 2 }}` — see the [Quick Start](#quick-start) above. The input formats as you type (`1234.56` → `$1,234.56`), keeps the caret stable, and `bind:value` gives you the plain number, not the formatted string.
+
+### Does it work with Svelte 4?
+
+No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and declares a `svelte@^5` peer dependency. There is no Svelte 4 build.
+
+### How big is it?
+
+`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
+
+### How is it different from react-number-format?
+
+Same `NumericFormat` and `PatternFormat` component names, same `onValueChange` payload, and the same `#` pattern token — plus `A`/`*` and custom regex tokens that react-number-format doesn't have. The API is idiomatic Svelte: `bind:value` instead of controlled-state wiring, locale-driven separators (`locale="de-DE"` → `1.234,56 €`) instead of manual `thousandSeparator`/`prefix` props, and separate `NumericText`/`PatternText` components instead of `displayType="text"`. The [migration table](#migrating-from-react-number-format) maps the common props.
+
+### How is it different from svelte-currency-input?
+
+[svelte-currency-input](https://github.com/fmaclen/svelte-currency-input) is a focused, well-made currency-only field — if that's all you need, it's a fine choice. `svelte-number-format` covers currency **plus** percent and decimal inputs, pattern masks (phone, credit card, dates, custom tokens), display-only components, and mirrors react-number-format's API.
+
+### Does it work with Superforms, Formsnap, or Felte?
+
+Yes — both inputs expose plain `bind:value`, so they drop into any Svelte form library. There are [live demos](https://pitis.github.io/svelte-number-format/demos/) with worked source for Superforms, Formsnap, Felte, and Zod validation. See [Form-library integration](#form-library-integration).
+
+### Is it SSR-safe with SvelteKit?
+
+Yes. No browser APIs run at module evaluation; the default locale resolves lazily (`navigator.language` on the client, `'en-US'` on the server). The input components render on the server and format on hydration; `NumericText`/`PatternText` render fully formatted markup during SSR — see [SSR / SvelteKit](#ssr--sveltekit).
+
+### Can I submit the raw value in a native form?
+
+Yes — pass a `name` prop and a hidden input carries the raw value (`1234.56`, not `$1,234.56`) into `FormData`, form actions, and SvelteKit remote functions. See [Native forms](#native-forms--sveltekit-remote-functions).
+
+---
+
 ## Browser Support
 
 - Svelte 5+
-- Modern browsers with `Intl.NumberFormat` support
-- IE11+ with polyfills
+- Modern evergreen browsers — the same baseline as Svelte 5, whose Proxy-based reactivity cannot be polyfilled
+- `Intl.NumberFormat` with `formatToParts` (ES2018+); no Internet Explorer support
 
 ---
 
@@ -973,13 +1013,13 @@ Contributions are welcome! This project uses:
 
 - **Husky** - Git hooks for quality checks
 - **lint-staged** - Run checks on staged files only
-- **Pre-commit hooks** - Automatic formatting, linting, and testing
+- **Pre-commit hooks** - Automatic formatting and linting (tests run when spec files are staged)
 
 Before each commit, the following runs automatically:
 
 - ✅ Prettier formatting
 - ✅ ESLint linting with auto-fix
-- ✅ Tests for changed files
+- ✅ Tests when spec/test files are among the staged changes (`vitest related`)
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development setup and guidelines.
 

@@ -4,6 +4,45 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+No library code changes — docs, demo site, and package metadata only.
+
+### Added
+
+- README: FAQ section (currency how-to, Svelte 4, bundle size, comparisons
+  with react-number-format and svelte-currency-input, form libraries, SSR,
+  native forms) plus measured gzipped sizes in Features.
+- Demo site: `llms.txt` context file for AI crawlers and agents.
+- Demo site: FAQ section on the homepage, emitted as `FAQPage` JSON-LD from
+  the same data that renders the visible text.
+- Size-limit budgets tightened to pin the sizes advertised in the README and
+  `llms.txt` (including a new budget for the `intl-number-input` dependency),
+  so CI fails if the published numbers go stale.
+
+### Changed
+
+- Package description now leads with "currency, number and masked input
+  components" and names all four components; added the `currency-input`
+  keyword. The GitHub repo description was updated to match.
+
+### Fixed
+
+- README fact-check corrections: removed the stale `mask` prop row (the prop
+  was removed in 2.0), removed the impossible "IE11+ with polyfills" claim
+  (Svelte 5's Proxy-based reactivity cannot be polyfilled), documented that
+  `SourceInfo.source` is currently always `'event'`, widened the `precision`
+  type and added `Unit` to the documented `NumberFormatStyle` members, noted
+  that all `NumberInputOptions` pass through, corrected the `aria-placeholder`
+  and pre-commit-hook descriptions, scoped the IME claim to `PatternFormat`,
+  and undocumented `HEX_COLOR` (its leading `#` is the digit token, so the
+  mask cannot accept a hex color).
+- Homepage copy corrections: hero said "Two components, fifteen masks" (four
+  components, 17 masks), the footer linked to a nonexistent Discussions page
+  (now links the migration guide), the MAC pattern chip showed `MAC` instead
+  of the real `MAC_ADDRESS` constant, and a feature card advertised the
+  broken hex mask.
+
 ## [2.1.1] — 2026-08-18
 
 No library code changes — docs, demo site, and tooling only.

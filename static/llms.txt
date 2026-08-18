@@ -1,0 +1,27 @@
+# svelte-number-format
+
+> Number, currency, percent and pattern-masked input components for Svelte 5 — caret-stable formatting, two-way binding, Intl.NumberFormat localization, SSR-safe. MIT-licensed. Install with `npm install svelte-number-format`.
+
+Key facts:
+
+- Components: NumericFormat (currency / percent / decimal input), PatternFormat (phone, credit card, date and custom masks), NumericText and PatternText (display-only)
+- Requires Svelte 5 (runes); full TypeScript support; works with SvelteKit SSR
+- Form libraries: drop-in with Superforms, Formsnap and Felte via plain `bind:value`; a `name` prop submits the raw value through native FormData
+- Size (gzipped package source): PatternFormat 3.9 kB with zero runtime dependencies; NumericFormat ~7.6 kB including its only dependency, intl-number-input
+- API mirrors react-number-format: same component names, same `onValueChange` payload `{ floatValue, formattedValue, value }`
+
+## Docs
+
+- [README — full API reference](https://github.com/pitis/svelte-number-format#readme): props, formatting options, mask patterns, form-library recipes, react-number-format migration table
+- [Live demo & playground](https://pitis.github.io/svelte-number-format/): interactive currency, percent and mask examples
+- [Form demos](https://pitis.github.io/svelte-number-format/demos/): Superforms, Formsnap, Felte and Zod integration with source
+- [npm package](https://www.npmjs.com/package/svelte-number-format)
+
+## Optional
+
+- [Superforms demo](https://pitis.github.io/svelte-number-format/demos/superforms/)
+- [Formsnap demo](https://pitis.github.io/svelte-number-format/demos/formsnap/)
+- [Felte demo](https://pitis.github.io/svelte-number-format/demos/felte/)
+- [Zod 3 vs Zod 4 demo](https://pitis.github.io/svelte-number-format/demos/zod/)
+- [Changelog](https://github.com/pitis/svelte-number-format/blob/main/CHANGELOG.md)
+- [v1 → v2 migration guide](https://github.com/pitis/svelte-number-format/blob/main/MIGRATION.md)

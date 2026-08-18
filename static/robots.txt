@@ -6,3 +6,6 @@ User-agent: *
 Allow: /
 
 Sitemap: https://pitis.github.io/svelte-number-format/sitemap.xml
+
+# AI-agent context file (llmstxt.org):
+# https://pitis.github.io/svelte-number-format/llms.txt
