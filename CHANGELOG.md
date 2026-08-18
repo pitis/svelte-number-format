@@ -14,6 +14,8 @@ No library code changes — docs, demo site, and package metadata only.
   with react-number-format and svelte-currency-input, form libraries, SSR,
   native forms) plus measured gzipped sizes in Features.
 - Demo site: `llms.txt` context file for AI crawlers and agents.
+- Demo site: FAQ section on the homepage, emitted as `FAQPage` JSON-LD from
+  the same data that renders the visible text.
 - Size-limit budgets tightened to pin the sizes advertised in the README and
   `llms.txt` (including a new budget for the `intl-number-input` dependency),
   so CI fails if the published numbers go stale.

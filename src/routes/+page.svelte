@@ -14,27 +14,77 @@
   const VERSION = pkg.version
 
   // Concatenated so the Svelte parser never sees a literal closing script tag.
-  const jsonLdTag =
+  const jsonLd = (data: object) =>
     '<script type="application/ld+json">' +
-    JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'SoftwareSourceCode',
-      name: 'svelte-number-format',
-      description: pkg.description,
-      url: 'https://pitis.github.io/svelte-number-format/',
-      codeRepository: 'https://github.com/pitis/svelte-number-format',
-      programmingLanguage: 'TypeScript',
-      runtimePlatform: 'Svelte 5',
-      license: 'https://opensource.org/license/mit/',
-      version: pkg.version,
-      author: {
-        '@type': 'Person',
-        name: 'Pitiș Radu',
-        url: 'https://github.com/pitis'
-      }
-    }).replace(/</g, '\\u003c') +
+    JSON.stringify(data).replace(/</g, '\\u003c') +
     '</scr' +
     'ipt>'
+
+  const jsonLdTag = jsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareSourceCode',
+    name: 'svelte-number-format',
+    description: pkg.description,
+    url: 'https://pitis.github.io/svelte-number-format/',
+    codeRepository: 'https://github.com/pitis/svelte-number-format',
+    programmingLanguage: 'TypeScript',
+    runtimePlatform: 'Svelte 5',
+    license: 'https://opensource.org/license/mit/',
+    version: pkg.version,
+    author: {
+      '@type': 'Person',
+      name: 'Pitiș Radu',
+      url: 'https://github.com/pitis'
+    }
+  })
+
+  // Rendered in the FAQ section below AND emitted as FAQPage JSON-LD — one
+  // source so the schema can never drift from the visible text. Keep answers
+  // in sync with the README's FAQ section.
+  const faq = [
+    {
+      q: 'How do I add a currency input in Svelte 5?',
+      a: "Install svelte-number-format and use NumericFormat with options={{ formatStyle: NumberFormatStyle.Currency, currency: 'USD', precision: 2 }}. It formats as you type, keeps the caret stable, and bind:value gives you the plain number — not the formatted string."
+    },
+    {
+      q: 'Does it work with Svelte 4?',
+      a: 'No. The library is built on Svelte 5 runes and declares a svelte@^5 peer dependency. There is no Svelte 4 build.'
+    },
+    {
+      q: 'How big is it?',
+      a: 'PatternFormat is 3.9 kB gzipped with zero runtime dependencies; NumericFormat is ~7.6 kB gzipped including its only dependency, intl-number-input. Subpath imports let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.'
+    },
+    {
+      q: 'How is it different from react-number-format?',
+      a: "Same NumericFormat and PatternFormat component names, same onValueChange payload, and the same # pattern token — plus A/* and custom regex tokens that react-number-format doesn't have. The API is idiomatic Svelte: bind:value instead of controlled-state wiring, and locale-driven separators instead of manual thousandSeparator/prefix props."
+    },
+    {
+      q: 'How is it different from svelte-currency-input?',
+      a: "svelte-currency-input is a focused, well-made currency-only field — if that's all you need, it's a fine choice. svelte-number-format covers currency plus percent and decimal inputs, pattern masks for phone, credit card and dates, display-only components, and mirrors react-number-format's API."
+    },
+    {
+      q: 'Does it work with Superforms, Formsnap, or Felte?',
+      a: 'Yes — both inputs expose plain bind:value, so they drop into any Svelte form library. The demos on this site show worked integrations with Superforms, Formsnap, Felte, and Zod validation.'
+    },
+    {
+      q: 'Is it SSR-safe with SvelteKit?',
+      a: "Yes. No browser APIs run at module evaluation; the default locale resolves lazily — navigator.language on the client, 'en-US' on the server. The input components render on the server and format on hydration; NumericText and PatternText render fully formatted markup during SSR."
+    },
+    {
+      q: 'Can I submit the raw value in a native form?',
+      a: 'Yes — pass a name prop and a hidden input carries the raw value (1234.56, not $1,234.56) into FormData, form actions, and SvelteKit remote functions. The visible formatted input stays unnamed.'
+    }
+  ]
+
+  const faqLdTag = jsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a }
+    }))
+  })
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   let dark = $state(false)
@@ -545,6 +595,8 @@
 <svelte:head>
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- static JSON-LD, no user input -->
   {@html jsonLdTag}
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -- static JSON-LD, no user input -->
+  {@html faqLdTag}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"
@@ -571,6 +623,7 @@
         <a class="nav-link" href="#numeric">Numeric</a>
         <a class="nav-link" href="#pattern">Pattern</a>
         <a class="nav-link" href="#locales">Locales</a>
+        <a class="nav-link" href="#faq">FAQ</a>
         <a class="nav-link" href="#install">Install</a>
         <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
         <a class="nav-link" href="{base}/demos/">Demos</a>
@@ -1132,6 +1185,35 @@
   </section>
 
   <!-- ── Install / CTA ───────────────────────────────────────────────────── -->
+  <!-- ── FAQ ─────────────────────────────────────────────────────────────── -->
+  <section class="block" id="faq">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">FAQ</div>
+          <h2 class="section-title">Questions, answered.</h2>
+        </div>
+        <p class="section-lead">
+          The short versions. The
+          <a
+            class="link"
+            href="https://github.com/pitis/svelte-number-format#readme"
+            target="_blank"
+            rel="noopener noreferrer">README</a
+          > has the long ones, with code.
+        </p>
+      </div>
+      <div class="faq-grid">
+        {#each faq as f (f.q)}
+          <article class="faq-item">
+            <h3 class="faq-q">{f.q}</h3>
+            <p class="faq-a">{f.a}</p>
+          </article>
+        {/each}
+      </div>
+    </div>
+  </section>
+
   <section class="block" id="install">
     <div class="container">
       <div class="cta">
@@ -1890,6 +1972,53 @@
   }
   .section-lead code {
     font-family: var(--font-mono);
+  }
+
+  /* FAQ */
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-soft);
+  }
+  .faq-item {
+    padding: 26px 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .faq-item:nth-child(odd) {
+    border-right: 1px solid var(--line);
+  }
+  .faq-item:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+  .faq-q {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .faq-a {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  @media (max-width: 720px) {
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+    .faq-item:nth-child(odd) {
+      border-right: 0;
+    }
+    .faq-item:nth-last-child(-n + 2) {
+      border-bottom: 1px solid var(--line);
+    }
+    .faq-item:last-child {
+      border-bottom: 0;
+    }
   }
 
   /* Features grid */

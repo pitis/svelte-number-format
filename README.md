@@ -972,7 +972,7 @@ No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and d
 
 ### How big is it?
 
-`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use.
+`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
 
 ### How is it different from react-number-format?
 
