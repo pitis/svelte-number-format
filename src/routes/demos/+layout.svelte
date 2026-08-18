@@ -55,12 +55,14 @@
         <span class="brand-mark">#</span>
         <span>svelte-number-format</span>
       </a>
-      <span class="nav-tag">demos</span>
+      <a class="nav-tag" href="{base}/demos/">demos</a>
       <nav class="nav-links" aria-label="Form library demos">
         {#each demos as demo (demo.slug)}
-          {@const active = page.url.pathname.endsWith('/' + demo.slug)}
+          {@const active = page.url.pathname
+            .replace(/\/$/, '')
+            .endsWith('/' + demo.slug)}
           <a
-            href="{base}/demos/{demo.slug}"
+            href="{base}/demos/{demo.slug}/"
             class="nav-link"
             class:is-active={active}
             aria-current={active ? 'page' : undefined}
@@ -228,6 +230,11 @@
     padding: 3px 7px;
     border-radius: 5px;
     border: 1px solid var(--line);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .nav-tag:hover {
+    color: var(--fg);
   }
   .nav-links {
     display: flex;

@@ -547,6 +547,8 @@
         <a class="nav-link" href="#pattern">Pattern</a>
         <a class="nav-link" href="#locales">Locales</a>
         <a class="nav-link" href="#install">Install</a>
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+        <a class="nav-link" href="{base}/demos/">Demos</a>
         <button
           type="button"
           class="icon-btn"
