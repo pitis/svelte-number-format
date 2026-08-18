@@ -17,12 +17,8 @@
   let dark = $state(false)
 
   onMount(() => {
-    const stored = localStorage.getItem('snf-theme')
-    if (stored === 'dark' || stored === 'light') {
-      dark = stored === 'dark'
-    } else {
-      dark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
+    // app.html's inline script already resolved the theme before first paint.
+    dark = document.documentElement.dataset.theme === 'dark'
   })
 
   $effect(() => {
@@ -34,7 +30,6 @@
 </script>
 
 <svelte:head>
-  <title>Form-library demos · svelte-number-format</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"

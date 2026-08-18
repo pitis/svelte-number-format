@@ -9,19 +9,39 @@
     MaskPatterns
   } from '../lib/index.js'
   import pkg from '../../package.json' with { type: 'json' }
+  import SeoHead from './SeoHead.svelte'
 
   const VERSION = pkg.version
+
+  // Concatenated so the Svelte parser never sees a literal closing script tag.
+  const jsonLdTag =
+    '<script type="application/ld+json">' +
+    JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareSourceCode',
+      name: 'svelte-number-format',
+      description: pkg.description,
+      url: 'https://pitis.github.io/svelte-number-format/',
+      codeRepository: 'https://github.com/pitis/svelte-number-format',
+      programmingLanguage: 'TypeScript',
+      runtimePlatform: 'Svelte 5',
+      license: 'https://opensource.org/license/mit/',
+      version: pkg.version,
+      author: {
+        '@type': 'Person',
+        name: 'Pitiș Radu',
+        url: 'https://github.com/pitis'
+      }
+    }).replace(/</g, '\\u003c') +
+    '</scr' +
+    'ipt>'
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   let dark = $state(false)
 
   onMount(() => {
-    const stored = localStorage.getItem('snf-theme')
-    if (stored === 'dark' || stored === 'light') {
-      dark = stored === 'dark'
-    } else {
-      dark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
+    // app.html's inline script already resolved the theme before first paint.
+    dark = document.documentElement.dataset.theme === 'dark'
   })
 
   $effect(() => {
@@ -514,12 +534,15 @@
   }
 </script>
 
+<SeoHead
+  title="svelte-number-format — Number, Currency & Masked Input for Svelte 5"
+  description="Reactive number, currency, percent and pattern-masked input components for Svelte 5 — caret-stable formatting, two-way binding, Intl locale support, SSR-safe."
+  path="/"
+/>
+
 <svelte:head>
-  <title>svelte-number-format — Numbers, formatted right.</title>
-  <meta
-    name="description"
-    content="A reactive input component library for Svelte 5 with caret-stable formatting, two-way binding, and Intl-grade locale support."
-  />
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -- static JSON-LD, no user input -->
+  {@html jsonLdTag}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"

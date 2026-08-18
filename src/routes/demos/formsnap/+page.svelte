@@ -9,6 +9,7 @@
     NumberFormatStyle
   } from '$lib/index.js'
   import { demoSchema, demoDefaults, type DemoSchema } from '../schema.js'
+  import SeoHead from '../../SeoHead.svelte'
 
   const form = superForm<DemoSchema>(demoDefaults, {
     SPA: true,
@@ -24,6 +25,12 @@
 
   const { form: formData, message: flash, submitting, enhance } = form
 </script>
+
+<SeoHead
+  title="Formsnap Accessible Form Demo — svelte-number-format"
+  description="Formsnap's headless Field, Label and Control primitives around svelte-number-format inputs — automatic ARIA wiring on top of Superforms and Zod."
+  path="/demos/formsnap/"
+/>
 
 <h1 class="demo-title">Formsnap <span>× svelte-number-format</span></h1>
 
