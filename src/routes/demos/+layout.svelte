@@ -7,7 +7,8 @@
   const demos = [
     { slug: 'superforms', label: 'Superforms' },
     { slug: 'formsnap', label: 'Formsnap' },
-    { slug: 'felte', label: 'Felte' }
+    { slug: 'felte', label: 'Felte' },
+    { slug: 'zod', label: 'Zod 3 × 4' }
   ]
 </script>
 

@@ -1128,6 +1128,8 @@
             <a href="{base}/demos/formsnap/">Formsnap</a>
             ·
             <a href="{base}/demos/felte/">Felte</a>
+            ·
+            <a href="{base}/demos/zod/">Zod 3 × 4</a>
           </p>
           <!-- eslint-enable svelte/no-navigation-without-resolve -->
         </div>
