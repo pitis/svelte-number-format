@@ -7,6 +7,7 @@
     MaskPatterns,
     NumberFormatStyle
   } from '$lib/index.js'
+  import SeoHead from '../../SeoHead.svelte'
 
   let amount = $state<number | null>(1500)
   let phone = $state<string | null>('4155551234')
@@ -65,6 +66,12 @@ export const postForm = form(
   async (data) => { /* data.amount is a number */ }
 )`
 </script>
+
+<SeoHead
+  title="Zod 3 vs Zod 4 Validation in Svelte — svelte-number-format"
+  description="The same number and phone inputs validated live through Zod 3 and Zod 4 side by side, with the API differences that matter: message vs error params, adapters, and Standard Schema."
+  path="/demos/zod/"
+/>
 
 <h1 class="demo-title">Zod 3 <span>× Zod 4</span></h1>
 

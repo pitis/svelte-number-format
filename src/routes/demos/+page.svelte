@@ -1,5 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths'
+  import SeoHead from '../SeoHead.svelte'
 
   const cards = [
     {
@@ -28,6 +29,12 @@
     }
   ]
 </script>
+
+<SeoHead
+  title="Svelte 5 Form Demos — Superforms, Formsnap, Felte & Zod"
+  description="Live svelte-number-format demos: currency and phone inputs wired into Superforms, Formsnap and Felte with Zod validation, plus a Zod 3 vs Zod 4 comparison."
+  path="/demos/"
+/>
 
 <h1 class="demo-title">Demos <span>real forms, real validation</span></h1>
 

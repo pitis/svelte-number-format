@@ -34,7 +34,6 @@
 </script>
 
 <svelte:head>
-  <title>Form-library demos · svelte-number-format</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"

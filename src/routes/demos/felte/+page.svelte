@@ -8,6 +8,7 @@
     NumberFormatStyle
   } from '$lib/index.js'
   import { demoSchema, demoDefaults, type DemoSchema } from '../schema.js'
+  import SeoHead from '../../SeoHead.svelte'
 
   let amount = $state<number | null>(demoDefaults.amount)
   let phone = $state<string | null>(demoDefaults.phone)
@@ -44,6 +45,12 @@
     setFields('phone', v, true)
   })
 </script>
+
+<SeoHead
+  title="Felte Form Validation Demo — svelte-number-format"
+  description="Felte with the Zod validator and svelte-number-format: fully client-side currency and phone inputs, with a slim $effect bridge into Felte's store."
+  path="/demos/felte/"
+/>
 
 <h1 class="demo-title">Felte <span>× svelte-number-format</span></h1>
 

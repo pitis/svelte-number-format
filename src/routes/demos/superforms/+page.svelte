@@ -9,6 +9,7 @@
     MaskPatterns,
     NumberFormatStyle
   } from '$lib/index.js'
+  import SeoHead from '../../SeoHead.svelte'
 
   const {
     form,
@@ -28,6 +29,12 @@
     }
   })
 </script>
+
+<SeoHead
+  title="Superforms Currency Input Demo — svelte-number-format"
+  description="SvelteKit Superforms with a Zod schema and svelte-number-format: a live currency input and US phone mask with client-side validation in SPA mode."
+  path="/demos/superforms/"
+/>
 
 <h1 class="demo-title">Superforms <span>× svelte-number-format</span></h1>
 
