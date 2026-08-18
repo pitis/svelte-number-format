@@ -4,6 +4,45 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] — 2026-08-18
+
+No library code changes — docs, demo site, and tooling only.
+
+### Fixed
+
+- README: the Felte integration example marked fields as touched on mount
+  (`setFields(…, true)` inside a mount-run `$effect`), surfacing validation
+  errors before any user interaction. The example now skips the initial sync
+  and only touches on real changes; the live Felte demo got the same fix.
+- Demo site: links with trailing slashes (`/demos/felte/`) returned 404 on
+  GitHub Pages because pages were prerendered as bare `.html` files. Every
+  route now prerenders as `directory/index.html` (`trailingSlash: 'always'`),
+  so both URL forms resolve.
+- Demo site: the version badge was hardcoded to `2.0.0`; it now reads the
+  version from `package.json` at build time and tracks the latest release.
+
+### Added
+
+- README: "Zod 3 or Zod 4? Both." section — the library has no Zod dependency,
+  every README snippet is valid in both majors, and the differences that matter
+  are listed (error param rename, `zodClient` vs `zod4Client` superforms
+  adapters, Felte's `zod ^3` peer, Standard Schema support in SvelteKit remote
+  form functions).
+- Demo site: live `/demos/zod` page validating the same bound values through
+  Zod 3 and Zod 4 side by side, a `/demos` overview page, and a Demos link in
+  the main navigation.
+- README: the `valueRange` option row now states that out-of-range values are
+  silently clamped on blur.
+
+### Changed
+
+- Demo site: the demos section shares the main page's design system, including
+  dark mode; the form-library demos surface the Zod schema error instead of
+  silently clamping the amount via `valueRange`.
+- Tooling (contributors only): Vite 8, vite-plugin-svelte 7, TypeScript 6,
+  ESLint 10, and current minors across the toolchain — groundwork for
+  SvelteKit 3 once it leaves RC.
+
 ## [2.1.0] — 2026-08-18
 
 ### Fixed

@@ -1,14 +1,7 @@
 import { isPatternToken, type CustomPatterns } from './cursor.js'
 
 export type InputMode =
-  | 'none'
-  | 'text'
-  | 'tel'
-  | 'url'
-  | 'email'
-  | 'numeric'
-  | 'decimal'
-  | 'search'
+  'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search'
 
 export function inferInputMode(
   pattern: string,

@@ -8,8 +8,9 @@
     NumberFormatStyle,
     MaskPatterns
   } from '../lib/index.js'
+  import pkg from '../../package.json' with { type: 'json' }
 
-  const VERSION = '2.0.0'
+  const VERSION = pkg.version
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   let dark = $state(false)
@@ -546,6 +547,8 @@
         <a class="nav-link" href="#pattern">Pattern</a>
         <a class="nav-link" href="#locales">Locales</a>
         <a class="nav-link" href="#install">Install</a>
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+        <a class="nav-link" href="{base}/demos/">Demos</a>
         <button
           type="button"
           class="icon-btn"
@@ -1127,6 +1130,8 @@
             <a href="{base}/demos/formsnap/">Formsnap</a>
             ·
             <a href="{base}/demos/felte/">Felte</a>
+            ·
+            <a href="{base}/demos/zod/">Zod 3 × 4</a>
           </p>
           <!-- eslint-enable svelte/no-navigation-without-resolve -->
         </div>

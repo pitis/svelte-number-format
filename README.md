@@ -116,7 +116,7 @@ The `options` prop accepts these properties:
 | `formatStyle`       | `NumberFormatStyle`              | `Decimal`, `Currency`, or `Percent`                                           |
 | `currency`          | `string`                         | Currency code (e.g., `'USD'`, `'EUR'`, `'GBP'`) - required for Currency style |
 | `precision`         | `number`                         | Number of decimal places                                                      |
-| `valueRange`        | `{ min?: number, max?: number }` | Min/max value constraints                                                     |
+| `valueRange`        | `{ min?: number, max?: number }` | Min/max constraints. Out-of-range values are silently clamped on blur         |
 | `autoDecimalDigits` | `boolean`                        | Automatically position decimal (e.g., typing `1234` → `12.34`)                |
 
 ### NumberFormatStyle Enum
@@ -609,11 +609,12 @@ The root export (`svelte-number-format`) still works and includes everything. Mo
 
 ## Form-library integration
 
-Both inputs use plain `bind:value` on a number (`NumericFormat`) or a string of raw digits (`PatternFormat`), which makes them drop-in compatible with the popular Svelte form libraries. The playground has three worked examples — source in `src/routes/demos/`:
+Both inputs use plain `bind:value` on a number (`NumericFormat`) or a string of raw digits (`PatternFormat`), which makes them drop-in compatible with the popular Svelte form libraries. The playground has four worked examples — source in `src/routes/demos/`:
 
 - [`/demos/superforms`](https://pitis.github.io/svelte-number-format/demos/superforms/) — [sveltekit-superforms](https://superforms.rocks) + Zod with server-side validation and action handling
 - [`/demos/formsnap`](https://pitis.github.io/svelte-number-format/demos/formsnap/) — [Formsnap](https://formsnap.dev) headless primitives on top of Superforms, auto-wiring all a11y attributes
 - [`/demos/felte`](https://pitis.github.io/svelte-number-format/demos/felte/) — [Felte](https://felte.dev) with the Zod validator, fully client-side
+- [`/demos/zod`](https://pitis.github.io/svelte-number-format/demos/zod/) — the same values validated through Zod 3 and Zod 4 side by side, plus the API differences that matter
 
 All three share one schema:
 
@@ -625,6 +626,28 @@ export const schema = z.object({
   phone: z.string().regex(/^\d{10}$/, 'Must be exactly 10 digits')
 })
 ```
+
+### Zod 3 or Zod 4? Both.
+
+`svelte-number-format` has **no Zod dependency** — `bind:value` hands your code a plain number (`NumericFormat`) or raw string (`PatternFormat`), and validation is entirely yours. Every snippet in this README is valid Zod 3 **and** Zod 4 as written. There's a live side-by-side comparison at [`/demos/zod`](https://pitis.github.io/svelte-number-format/demos/zod/) validating the same bound values through both majors at once.
+
+The differences that matter when you copy these patterns:
+
+```ts
+// Custom error params were renamed in Zod 4 — the string shorthand works in both
+z.number().max(1_000_000, { message: 'Must be ≤ 1,000,000' }) // Zod 3
+z.number().max(1_000_000, { error: 'Must be ≤ 1,000,000' }) // Zod 4
+z.number().max(1_000_000, 'Must be ≤ 1,000,000') // both
+```
+
+```ts
+// sveltekit-superforms (and therefore Formsnap) ships an adapter per major
+import { zodClient } from 'sveltekit-superforms/adapters' // Zod 3
+import { zod4Client } from 'sveltekit-superforms/adapters' // Zod 4
+```
+
+- **Felte**: `@felte/validator-zod` declares a `zod ^3` peer dependency, so use Zod 3 there.
+- **SvelteKit remote form functions** accept any [Standard Schema](https://standardschema.dev) validator — Zod 3.24+ and Zod 4 both qualify, so the [remote functions recipe](#sveltekit-remote-form-functions) below works with either.
 
 ### Superforms (the standard choice)
 
@@ -684,11 +707,25 @@ export const schema = z.object({
     }
   })
 
+  // Skip the mount run: initialValues already seeded the store, and touching
+  // the fields here would surface validation errors before any interaction.
+  let amountSeeded = false
+  let phoneSeeded = false
   $effect(() => {
-    setFields('amount', amount ?? 0, true)
+    const v = amount ?? 0
+    if (!amountSeeded) {
+      amountSeeded = true
+      return
+    }
+    setFields('amount', v, true)
   })
   $effect(() => {
-    setFields('phone', phone ?? '', true)
+    const v = phone ?? ''
+    if (!phoneSeeded) {
+      phoneSeeded = true
+      return
+    }
+    setFields('phone', v, true)
   })
 </script>
 
