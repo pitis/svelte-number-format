@@ -534,6 +534,8 @@
   }
 </script>
 
+<!-- This meta description is hand-written; the JSON-LD description injected
+     below comes from package.json — keep the two telling the same story. -->
 <SeoHead
   title="svelte-number-format — Number, Currency & Masked Input for Svelte 5"
   description="Reactive number, currency, percent and pattern-masked input components for Svelte 5 — caret-stable formatting, two-way binding, Intl locale support, SSR-safe."
@@ -830,7 +832,7 @@
       <div class="stats">
         <div class="stats-row">
           <div class="stat">
-            <div class="num">~8 KB</div>
+            <div class="num">~7.6 kB</div>
             <div class="lbl">Bundle size · gzipped</div>
           </div>
           <div class="stat">
@@ -1137,7 +1139,7 @@
           <div class="section-kicker">Install</div>
           <h3>Add it to your Svelte 5 project.</h3>
           <p>
-            MIT licensed. ~8 KB gzipped. Zero config.
+            MIT licensed. ~7.6 kB gzipped. Zero config.
             <a
               class="link"
               href="https://github.com/pitis/svelte-number-format"

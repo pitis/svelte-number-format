@@ -8,7 +8,13 @@
       "dist/internal/values.js"
     ],
     "gzip": true,
-    "limit": "6 KB"
+    "limit": "2.5 KB"
+  },
+  {
+    "name": "intl-number-input dependency (gzipped)",
+    "path": "node_modules/intl-number-input/dist/index.mjs",
+    "gzip": true,
+    "limit": "5.5 KB"
   },
   {
     "name": "PatternFormat source (gzipped)",
@@ -20,7 +26,7 @@
       "dist/internal/values.js"
     ],
     "gzip": true,
-    "limit": "6 KB"
+    "limit": "4 KB"
   },
   {
     "name": "NumericText source (gzipped)",

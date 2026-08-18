@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+No library code changes — docs, demo site, and package metadata only.
+
+### Added
+
+- README: FAQ section (currency how-to, Svelte 4, bundle size, comparisons
+  with react-number-format and svelte-currency-input, form libraries, SSR,
+  native forms) plus measured gzipped sizes in Features.
+- Demo site: `llms.txt` context file for AI crawlers and agents.
+- Size-limit budgets tightened to pin the sizes advertised in the README and
+  `llms.txt` (including a new budget for the `intl-number-input` dependency),
+  so CI fails if the published numbers go stale.
+
+### Changed
+
+- Package description now leads with "currency, number and masked input
+  components" and names all four components; added the `currency-input`
+  keyword. The GitHub repo description was updated to match.
+
 ## [2.1.1] — 2026-08-18
 
 No library code changes — docs, demo site, and tooling only.

@@ -29,7 +29,7 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 - `allowEmptyFormatting` to show the mask skeleton before typing
 - SSR-safe (no `navigator` at module eval)
 - A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
-- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.5 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
+- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.6 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
 
 🌍 **Internationalization**
 
@@ -964,7 +964,7 @@ import type {
 
 ### How do I add a currency input in Svelte 5?
 
-Install `svelte-number-format` and use `NumericFormat` with `formatStyle: Currency` — see the [Quick Start](#quick-start) above. The input formats as you type (`1234.56` → `$1,234.56`), keeps the caret stable, and `bind:value` gives you the plain number, not the formatted string.
+Install `svelte-number-format` and use `NumericFormat` with `options={{ formatStyle: NumberFormatStyle.Currency, currency: 'USD', precision: 2 }}` — see the [Quick Start](#quick-start) above. The input formats as you type (`1234.56` → `$1,234.56`), keeps the caret stable, and `bind:value` gives you the plain number, not the formatted string.
 
 ### Does it work with Svelte 4?
 
@@ -972,11 +972,11 @@ No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and d
 
 ### How big is it?
 
-`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.5 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use.
+`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use.
 
 ### How is it different from react-number-format?
 
-Same component names, same `onValueChange` payload, same pattern tokens — but idiomatic Svelte: `bind:value` instead of controlled-state wiring, and locale-driven separators (`locale="de-DE"` → `1.234,56 €`) instead of manual `thousandSeparator`/`prefix` props. The [migration table](#migrating-from-react-number-format) maps every prop.
+Same `NumericFormat` and `PatternFormat` component names, same `onValueChange` payload, and the same `#` pattern token — plus `A`/`*` and custom regex tokens that react-number-format doesn't have. The API is idiomatic Svelte: `bind:value` instead of controlled-state wiring, locale-driven separators (`locale="de-DE"` → `1.234,56 €`) instead of manual `thousandSeparator`/`prefix` props, and separate `NumericText`/`PatternText` components instead of `displayType="text"`. The [migration table](#migrating-from-react-number-format) maps the common props.
 
 ### How is it different from svelte-currency-input?
 
@@ -988,7 +988,7 @@ Yes — both inputs expose plain `bind:value`, so they drop into any Svelte form
 
 ### Is it SSR-safe with SvelteKit?
 
-Yes. No browser APIs run at module evaluation; the default locale resolves lazily (`navigator.language` on the client, `'en-US'` on the server). Components render on the server, format on hydration — see [SSR / SvelteKit](#ssr--sveltekit).
+Yes. No browser APIs run at module evaluation; the default locale resolves lazily (`navigator.language` on the client, `'en-US'` on the server). The input components render on the server and format on hydration; `NumericText`/`PatternText` render fully formatted markup during SSR — see [SSR / SvelteKit](#ssr--sveltekit).
 
 ### Can I submit the raw value in a native form?
 

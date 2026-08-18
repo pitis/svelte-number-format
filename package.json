@@ -1,6 +1,6 @@
 {
   "name": "svelte-number-format",
-  "description": "Lightweight currency, number and masked input components for Svelte 5. NumericFormat (currency, percent, decimal) & PatternFormat (phone, credit card, date) inputs plus SSR-safe display components.",
+  "description": "Lightweight currency, number and masked input components for Svelte 5. NumericFormat (currency, percent, decimal) & PatternFormat (phone, credit card, date) inputs, plus NumericText & PatternText for SSR-safe display.",
   "version": "2.1.1",
   "author": {
     "name": "Pitiș Radu",
