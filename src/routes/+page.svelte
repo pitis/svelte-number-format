@@ -8,8 +8,9 @@
     NumberFormatStyle,
     MaskPatterns
   } from '../lib/index.js'
+  import pkg from '../../package.json' with { type: 'json' }
 
-  const VERSION = '2.0.0'
+  const VERSION = pkg.version
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   let dark = $state(false)

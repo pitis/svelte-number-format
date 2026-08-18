@@ -173,10 +173,6 @@
     color: var(--ink-faint);
     margin: 0;
   }
-  .field-hint code {
-    font-size: inherit;
-    color: var(--ink-dim);
-  }
   .submit {
     align-self: flex-start;
     font-family: 'JetBrains Mono', monospace;
