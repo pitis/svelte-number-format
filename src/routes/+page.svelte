@@ -32,7 +32,7 @@
         name: 'Pitiș Radu',
         url: 'https://github.com/pitis'
       }
-    }) +
+    }).replace(/</g, '\\u003c') +
     '</scr' +
     'ipt>'
 
@@ -40,12 +40,8 @@
   let dark = $state(false)
 
   onMount(() => {
-    const stored = localStorage.getItem('snf-theme')
-    if (stored === 'dark' || stored === 'light') {
-      dark = stored === 'dark'
-    } else {
-      dark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
+    // app.html's inline script already resolved the theme before first paint.
+    dark = document.documentElement.dataset.theme === 'dark'
   })
 
   $effect(() => {

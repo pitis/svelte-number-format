@@ -1,3 +1,7 @@
+# Note: crawlers only read robots.txt from the domain root, and this deploys
+# to a GitHub Pages *project* path (pitis.github.io/svelte-number-format/), so
+# this file is decorative — the sitemap is submitted manually in Google Search
+# Console / Bing Webmaster Tools instead.
 User-agent: *
 Allow: /
 

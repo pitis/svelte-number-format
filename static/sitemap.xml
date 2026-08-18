@@ -1,33 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Maintained by hand: add an entry (with trailing slash) for every new
+     prerendered route. No lastmod on purpose — a stale date is worse than
+     none. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://pitis.github.io/svelte-number-format/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://pitis.github.io/svelte-number-format/demos/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://pitis.github.io/svelte-number-format/demos/superforms/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://pitis.github.io/svelte-number-format/demos/formsnap/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://pitis.github.io/svelte-number-format/demos/felte/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://pitis.github.io/svelte-number-format/demos/zod/</loc>
-    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
 </urlset>
