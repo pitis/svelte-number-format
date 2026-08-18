@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   applyMask,
   calculateCursorPosition,
+  countTokens,
   generatePlaceholder,
   isPatternToken,
   isValidChar
@@ -242,5 +243,21 @@ describe('generatePlaceholder', () => {
     expect(
       generatePlaceholder('HH-BBBB', '_', { H: /[0-9a-f]/, B: /[01]/ })
     ).toBe('__-____')
+  })
+})
+
+describe('countTokens', () => {
+  it('counts built-in tokens', () => {
+    expect(countTokens('(###) ###-####')).toBe(10)
+    expect(countTokens('AAA-###-***')).toBe(9)
+  })
+
+  it('returns 0 for literal-only and empty patterns', () => {
+    expect(countTokens('---')).toBe(0)
+    expect(countTokens('')).toBe(0)
+  })
+
+  it('counts custom tokens', () => {
+    expect(countTokens('HH-BB', { H: /[0-9a-f]/, B: /[01]/ })).toBe(4)
   })
 })

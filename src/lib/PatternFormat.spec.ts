@@ -939,4 +939,607 @@ describe('PatternFormat.svelte', () => {
       expect(new FormData(form).get('phone')).toBe('')
     })
   })
+
+  describe("onValueChange source (regression: SourceInfo.source 'prop')", () => {
+    type Call = {
+      values: {
+        floatValue: number | undefined
+        formattedValue: string
+        value: string
+      }
+      info: { event: Event | undefined; source: 'event' | 'prop' }
+    }
+
+    function collect() {
+      const calls: Call[] = []
+      const onValueChange = (values: Call['values'], info: Call['info']) =>
+        calls.push({ values, info })
+      return { calls, onValueChange }
+    }
+
+    function firePaste(input: HTMLInputElement, text: string) {
+      const event = new Event('paste', {
+        bubbles: true,
+        cancelable: true
+      })
+      Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text' ? text : '') }
+      })
+      return fireEvent(input, event)
+    }
+
+    it('does not emit on initial mount', async () => {
+      const { calls, onValueChange } = collect()
+      render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("emits exactly one 'prop' call for an external value update", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({
+        format: MaskPatterns.PHONE_US,
+        value: '9998887777',
+        onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].info.event).toBeUndefined()
+      expect(calls[0].values.value).toBe('9998887777')
+      expect(calls[0].values.formattedValue).toBe('(999) 888-7777')
+    })
+
+    it("a keystroke emits exactly one 'event' call — no trailing 'prop'", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '1234567890'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].info.event).toBeInstanceOf(Event)
+    })
+
+    it("input followed by change emits two 'event' calls and nothing more", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '1234567890'
+      await fireEvent.input(input)
+      await fireEvent.change(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(2)
+      expect(calls.every((c) => c.info.source === 'event')).toBe(true)
+    })
+
+    it("paste emits exactly one 'event' call", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.focus()
+      await firePaste(input, '4155551234')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].values.value).toBe('4155551234')
+    })
+
+    it("composition emits exactly one 'event' call, on compositionend", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.compositionStart(input)
+      input.value = '415'
+      await fireEvent.input(input)
+      await fireEvent.compositionEnd(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+    })
+
+    it("backspace over a literal emits 'event' with the real KeyboardEvent and does not throw", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '123456'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.value).toBe('(123) 456')
+      calls.length = 0
+
+      // Cursor after the space literal: pattern[5] === ' '.
+      input.setSelectionRange(6, 6)
+      await fireEvent.keyDown(input, { key: 'Backspace' })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].info.event).toBeInstanceOf(Event)
+      // The literal is re-applied by the mask; the raw digits are unchanged
+      // and the caret has stepped over the literal.
+      expect(calls[0].values.value).toBe('123456')
+      expect(input.value).toBe('(123) 456')
+    })
+
+    it('does not emit when rerendered with the same value', async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({
+        format: MaskPatterns.PHONE_US,
+        value: '4155551234',
+        onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("normalizes external values through the mask in the 'prop' payload", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: { format: '###-###', value: '111222', onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ format: '###-###', value: 'abc123', onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].values.value).toBe('123')
+      expect(calls[0].values.formattedValue).toBe('123')
+    })
+
+    it("external clear carries the skeleton with allowEmptyFormatting, '' without", async () => {
+      const withSkeleton = collect()
+      const first = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          allowEmptyFormatting: true,
+          value: '4155551234',
+          onValueChange: withSkeleton.onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      withSkeleton.calls.length = 0
+
+      await first.rerender({
+        format: MaskPatterns.PHONE_US,
+        allowEmptyFormatting: true,
+        value: null,
+        onValueChange: withSkeleton.onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(withSkeleton.calls.length).toBe(1)
+      const skeletonCall = withSkeleton.calls[0]
+      expect(skeletonCall.info.source).toBe('prop')
+      expect(skeletonCall.values.value).toBe('')
+      expect(skeletonCall.values.floatValue).toBeUndefined()
+      expect(skeletonCall.values.formattedValue).toBe('(___) ___-____')
+      cleanup()
+
+      const plain = collect()
+      const second = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange: plain.onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plain.calls.length = 0
+
+      await second.rerender({
+        format: MaskPatterns.PHONE_US,
+        value: null,
+        onValueChange: plain.onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(plain.calls.length).toBe(1)
+      expect(plain.calls[0].values.formattedValue).toBe('')
+    })
+
+    it("form reset emits source 'prop' with an empty payload", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'phone',
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('prop')
+      expect(last.values.value).toBe('')
+    })
+
+    it("non-numeric patterns report floatValue undefined in 'prop' payloads", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: { format: 'AAA-###', value: 'XYZ111', onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ format: 'AAA-###', value: 'ABC123', onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].values.floatValue).toBeUndefined()
+      expect(calls[0].values.value).toBe('ABC123')
+    })
+  })
+
+  describe('Validation (validate / onValidate)', () => {
+    const CPF_MASK = '###.###.###-##'
+    const isCpf = (raw: string) => raw === '14550200286'
+
+    function attrs(input: HTMLInputElement) {
+      return {
+        valid: input.getAttribute('data-valid'),
+        ariaInvalid: input.getAttribute('aria-invalid')
+      }
+    }
+
+    it('sets no validity attributes when validate is absent', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, value: '14550200286' }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('is indeterminate while empty', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('is indeterminate while the mask is only partially filled', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '145502002'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('reports data-valid="true" without aria-invalid for a complete valid value', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: 'true', ariaInvalid: null })
+    })
+
+    it('reports data-valid="false" and aria-invalid for a complete invalid value', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200287'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: 'false', ariaInvalid: 'true' })
+    })
+
+    it('reverts to indeterminate when edited back below completeness', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      input.value = '145.502.002-8'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('validates pasted pre-formatted input in one shot', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          getData: (t: string) => (t === 'text' ? '145.502.002-86' : '')
+        }
+      })
+      await fireEvent(input, event)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input).valid).toBe('true')
+    })
+
+    it('consumer-supplied aria-invalid wins over the computed one', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          'aria-invalid': 'true'
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.getAttribute('data-valid')).toBe('true')
+      expect(input.getAttribute('aria-invalid')).toBe('true')
+    })
+
+    it('onValidate is silent on mount for both prefilled valid and invalid values', async () => {
+      const calls: Array<boolean | null> = []
+      render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200287',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it('fires onValidate(true) once when typing reaches a valid value, without repeats', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await fireEvent.change(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([true])
+    })
+
+    it('fires onValidate(false) when a valid value is edited into an invalid one', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      input.value = '145.502.002-87'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([false])
+    })
+
+    it('fires onValidate(null) when a complete value is cleared', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      input.value = ''
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([null])
+    })
+
+    it('external value changes drive validity and fire onValidate', async () => {
+      const calls: Array<boolean | null> = []
+      const onValidate = (v: boolean | null) => calls.push(v)
+      const { container, rerender } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      await rerender({
+        format: CPF_MASK,
+        value: '14550200287',
+        validate: isCpf,
+        onValidate
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.getAttribute('data-valid')).toBe('false')
+      expect(calls).toEqual([false])
+    })
+
+    it('form.reset() clears validity to indeterminate and fires onValidate(null)', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'cpf',
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector(
+        'input:not([type="hidden"])'
+      ) as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+      expect(calls).toEqual([null])
+    })
+
+    it('counts custom pattern tokens toward completeness', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'HH-HH',
+          customPatterns: { H: /[0-9a-f]/ },
+          validate: (raw: string) => raw === 'abcd'
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = 'abc'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe(null)
+
+      input.value = 'ab-cd'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe('true')
+    })
+
+    it('stays indeterminate while allowEmptyFormatting shows the skeleton', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          allowEmptyFormatting: true,
+          validate: isCpf
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await fireEvent.focus(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('does not update validity during IME composition', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.compositionStart(input)
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe(null)
+
+      await fireEvent.compositionEnd(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe('true')
+    })
+  })
 })

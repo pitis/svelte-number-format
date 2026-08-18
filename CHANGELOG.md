@@ -4,12 +4,76 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] — 2026-08-18
 
-No library code changes — docs, demo site, and package metadata only.
+### Fixed
+
+- `onValueChange` now reports `source: 'prop'` (with `event: undefined`) when
+  the change came through the bound `value` prop — external updates,
+  locale/options re-initialization, and native `form.reset()`. Previously
+  `NumericFormat` mislabeled these as `'event'` with a synthetic event, and
+  `PatternFormat` did not fire `onValueChange` for external changes at all.
+- `NumericFormat`: switching `locale` (or `options`) corrupted the bound
+  value — the recreated formatter re-parsed the old formatted string with the
+  new locale rules (en-US `1,234.56` read as de-DE `1.23`) and wrote the
+  mis-parse back into `value`. The component now re-seeds the real number
+  after re-initialization.
+- `PatternFormat`: backspacing over a literal character (the space in
+  `(123) 456`, a dash, etc.) threw a `TypeError` and left the bound value
+  stale — the internal handler synthesized an event with no target. It now
+  commits directly and passes the real `KeyboardEvent` to callbacks.
+- README fact-check corrections: removed the stale `mask` prop row (the prop
+  was removed in 2.0), removed the impossible "IE11+ with polyfills" claim
+  (Svelte 5's Proxy-based reactivity cannot be polyfilled), widened the
+  `precision` type and added `Unit` to the documented `NumberFormatStyle`
+  members, noted that all `NumberInputOptions` pass through, corrected the
+  `aria-placeholder` and pre-commit-hook descriptions, scoped the IME claim
+  to `PatternFormat`, and undocumented `HEX_COLOR`.
+- Homepage copy corrections: hero said "Two components, fifteen masks" (four
+  components, 17 masks), the footer linked to a nonexistent Discussions page
+  (now links the migration guide), the MAC pattern chip showed `MAC` instead
+  of the real `MAC_ADDRESS` constant, and a feature card advertised the
+  broken hex mask.
+
+### Changed
+
+- `onValueChange` no longer fires on initial mount (react-number-format
+  parity): it reports changes, not the initial value. `NumericFormat`
+  previously emitted once or twice on mount. The legacy `onInput`/`onChange`
+  callback props are unchanged.
+- `NumericFormat` no longer destroys and recreates its internal formatter
+  when the bound `value` changes externally — only `locale`/`options` changes
+  re-initialize it.
+- An external `value` change that arrives while `NumericFormat` is focused is
+  ignored — the user's in-progress edit wins (previously it rebuilt the
+  formatter mid-edit and lost the caret).
+- Package description now leads with "currency, number and masked input
+  components" and names all four components; added the `currency-input`
+  keyword. The GitHub repo description was updated to match.
+- The new emission and validation logic grows the shipped source: published
+  sizes updated everywhere (PatternFormat 4.6 kB gzipped, NumericFormat
+  ~8.1 kB including its dependency) and the size-limit budgets re-pinned to
+  match.
+
+### Deprecated
+
+- `MaskPatterns.HEX_COLOR` — broken by construction: the leading `#` is the
+  digit token, so the mask cannot accept a hex color. Use
+  `format="HHHHHH"` with `customPatterns={{ H: /[0-9a-fA-F]/ }}` instead.
+  Removal planned for 3.0.
 
 ### Added
 
+- `PatternFormat` real-time validation: a `validate` predicate prop and an
+  `onValidate` callback with three-state validity — indeterminate while the
+  mask is empty or incomplete, then valid/invalid reported reactively via
+  `data-valid` and `aria-invalid` (consumer-supplied `aria-invalid` wins;
+  attributes are SSR-prerendered; `onValidate` is silent on mount). Idea and
+  initial implementation by @Zinnavoy in
+  [#12](https://github.com/pitis/svelte-number-format/pull/12).
+- New `svelte-number-format/validators` subpath: a `Validators` registry with
+  `BRAZILIAN_CPF`, `LUHN`, `US_PHONE`, and `IPV4`, plus the `Validator` type.
+  Also new `MaskPatterns.BRAZILIAN_CPF` (`###.###.###-##`).
 - README: FAQ section (currency how-to, Svelte 4, bundle size, comparisons
   with react-number-format and svelte-currency-input, form libraries, SSR,
   native forms) plus measured gzipped sizes in Features.
@@ -19,29 +83,6 @@ No library code changes — docs, demo site, and package metadata only.
 - Size-limit budgets tightened to pin the sizes advertised in the README and
   `llms.txt` (including a new budget for the `intl-number-input` dependency),
   so CI fails if the published numbers go stale.
-
-### Changed
-
-- Package description now leads with "currency, number and masked input
-  components" and names all four components; added the `currency-input`
-  keyword. The GitHub repo description was updated to match.
-
-### Fixed
-
-- README fact-check corrections: removed the stale `mask` prop row (the prop
-  was removed in 2.0), removed the impossible "IE11+ with polyfills" claim
-  (Svelte 5's Proxy-based reactivity cannot be polyfilled), documented that
-  `SourceInfo.source` is currently always `'event'`, widened the `precision`
-  type and added `Unit` to the documented `NumberFormatStyle` members, noted
-  that all `NumberInputOptions` pass through, corrected the `aria-placeholder`
-  and pre-commit-hook descriptions, scoped the IME claim to `PatternFormat`,
-  and undocumented `HEX_COLOR` (its leading `#` is the digit token, so the
-  mask cannot accept a hex color).
-- Homepage copy corrections: hero said "Two components, fifteen masks" (four
-  components, 17 masks), the footer linked to a nonexistent Discussions page
-  (now links the migration guide), the MAC pattern chip showed `MAC` instead
-  of the real `MAC_ADDRESS` constant, and a feature card advertised the
-  broken hex mask.
 
 ## [2.1.1] — 2026-08-18
 

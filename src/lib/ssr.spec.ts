@@ -125,6 +125,28 @@ describe('SSR render (node environment, no DOM)', () => {
     expect(result.body).toContain('—')
   })
 
+  it('prerenders validity attributes from the initial value', () => {
+    const validate = (raw: string) => raw === '14550200286'
+
+    const invalid = render(PatternFormat, {
+      props: { format: '###.###.###-##', value: '14550200287', validate }
+    })
+    expect(invalid.body).toContain('data-valid="false"')
+    expect(invalid.body).toContain('aria-invalid="true"')
+
+    const valid = render(PatternFormat, {
+      props: { format: '###.###.###-##', value: '14550200286', validate }
+    })
+    expect(valid.body).toContain('data-valid="true"')
+    expect(valid.body).not.toContain('aria-invalid')
+
+    const empty = render(PatternFormat, {
+      props: { format: '###.###.###-##', validate }
+    })
+    expect(empty.body).not.toContain('data-valid')
+    expect(empty.body).not.toContain('aria-invalid')
+  })
+
   it('does not reference navigator at module scope', () => {
     // If any component pulled navigator.language at module init, the imports
     // above would have already thrown by now. This assertion codifies that.

@@ -1,7 +1,7 @@
 {
   "name": "svelte-number-format",
   "description": "Lightweight currency, number and masked input components for Svelte 5. NumericFormat (currency, percent, decimal) & PatternFormat (phone, credit card, date) inputs, plus NumericText & PatternText for SSR-safe display.",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "author": {
     "name": "Pitiș Radu",
     "url": "https://github.com/pitis"
@@ -113,6 +113,12 @@
       "svelte": "./dist/patterns.js",
       "import": "./dist/patterns.js",
       "default": "./dist/patterns.js"
+    },
+    "./validators": {
+      "types": "./dist/validators.d.ts",
+      "svelte": "./dist/validators.js",
+      "import": "./dist/validators.js",
+      "default": "./dist/validators.js"
     },
     "./display": {
       "types": "./dist/display.d.ts",

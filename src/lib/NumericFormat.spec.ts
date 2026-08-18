@@ -607,4 +607,216 @@ describe('NumericFormat.svelte', () => {
       expect(hiddenOf(container).value).toBe('100')
     })
   })
+
+  describe("onValueChange source (regression: SourceInfo.source 'prop')", () => {
+    type Call = {
+      values: {
+        floatValue: number | undefined
+        formattedValue: string
+        value: string
+      }
+      info: { event: Event | undefined; source: 'event' | 'prop' }
+    }
+
+    function collect() {
+      const calls: Call[] = []
+      const onValueChange = (values: Call['values'], info: Call['info']) =>
+        calls.push({ values, info })
+      return { calls, onValueChange }
+    }
+
+    it('does not emit on initial mount', async () => {
+      const { calls, onValueChange } = collect()
+      render(NumericFormat, {
+        props: {
+          value: 1234.56,
+          locale: 'en-US',
+          options: { precision: 2 },
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("emits source 'prop' with no event for external value updates", async () => {
+      const { calls, onValueChange } = collect()
+      // Reused across render/rerender on purpose: a fresh options identity
+      // re-creates the NumberInput and emits an extra 'prop' call.
+      const options = { precision: 2 }
+      const { rerender } = render(NumericFormat, {
+        props: { value: 100, locale: 'en-US', options, onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ value: 9999.5, locale: 'en-US', options, onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('prop')
+      expect(last.info.event).toBeUndefined()
+      expect(last.values.floatValue).toBe(9999.5)
+    })
+
+    it("emits source 'event' with an Event for user typing", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(NumericFormat, {
+        props: {
+          value: 100,
+          locale: 'en-US',
+          options: { precision: 2 },
+          onValueChange
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      input.focus()
+      input.value = '55'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('event')
+      expect(last.info.event).toBeInstanceOf(Event)
+      expect(last.values.floatValue).toBe(55)
+    })
+
+    it('does not emit when rerendered with the same value', async () => {
+      const { calls, onValueChange } = collect()
+      const options = { precision: 2 }
+      const { rerender } = render(NumericFormat, {
+        props: { value: 100, locale: 'en-US', options, onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ value: 100, locale: 'en-US', options, onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("emits source 'prop' with an empty payload when cleared externally", async () => {
+      const { calls, onValueChange } = collect()
+      const options = { precision: 2 }
+      const { container, rerender } = render(NumericFormat, {
+        props: { value: 100, locale: 'en-US', options, onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ value: null, locale: 'en-US', options, onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('prop')
+      expect(last.values.floatValue).toBeUndefined()
+      expect(last.values.value).toBe('')
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('')
+    })
+
+    it("emits one 'prop' call with the clamped number for out-of-range external values", async () => {
+      const { calls, onValueChange } = collect()
+      const options = { precision: 2, valueRange: { min: 0, max: 100 } }
+      const { rerender } = render(NumericFormat, {
+        props: { value: 50, locale: 'en-US', options, onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ value: 500, locale: 'en-US', options, onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // intl-number-input reports a clamped set through both its input and
+      // change callbacks — mirroring the dual-callback shape of user edits —
+      // so assert on the settled last call, not the count.
+      expect(calls.length).toBeGreaterThan(0)
+      expect(calls.every((c) => c.info.source === 'prop')).toBe(true)
+      const last = calls[calls.length - 1]
+      expect(last.values.floatValue).toBe(100)
+    })
+
+    it("blur clamping emits only 'event' calls, never 'prop'", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(NumericFormat, {
+        props: {
+          value: 50,
+          locale: 'en-US',
+          options: { precision: 2, valueRange: { min: 0, max: 100 } },
+          onValueChange
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      input.focus()
+      input.value = '500'
+      await fireEvent.input(input)
+      await fireEvent.blur(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBeGreaterThan(0)
+      expect(calls.every((c) => c.info.source === 'event')).toBe(true)
+    })
+
+    it("form reset emits source 'prop' with an empty payload", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(NumericFormat, {
+        props: {
+          name: 'amount',
+          value: 100,
+          locale: 'en-US',
+          options: { precision: 2 },
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('prop')
+      expect(last.values.value).toBe('')
+    })
+
+    it("locale change re-seeds the value and emits only 'prop'", async () => {
+      const { calls, onValueChange } = collect()
+      const options = { precision: 2 }
+      const { container, rerender } = render(NumericFormat, {
+        props: { value: 1234.56, locale: 'en-US', options, onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({
+        value: 1234.56,
+        locale: 'de-DE',
+        options,
+        onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBeGreaterThan(0)
+      expect(calls.every((c) => c.info.source === 'prop')).toBe(true)
+      const last = calls[calls.length - 1]
+      expect(last.values.floatValue).toBe(1234.56)
+      const input = container.querySelector('input') as HTMLInputElement
+      expect(input.value).toBe('1.234,56')
+    })
+  })
 })

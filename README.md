@@ -29,7 +29,7 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 - `allowEmptyFormatting` to show the mask skeleton before typing
 - SSR-safe (no `navigator` at module eval)
 - A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
-- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.6 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
+- Small — `PatternFormat` is 4.6 kB gzipped with zero runtime dependencies; `NumericFormat` is ~8.1 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
 
 🌍 **Internationalization**
 
@@ -277,6 +277,8 @@ Pattern-based input masking for structured text inputs.
 | `placeholder`          | `string`                                                   | auto        | Placeholder text. Auto-generated from `format` if not provided.                                                                                                                                                                                                                           |
 | `customPatterns`       | `Record<string, RegExp>`                                   | `undefined` | Additional pattern tokens. See [Custom patterns](#custom-patterns).                                                                                                                                                                                                                       |
 | `allowEmptyFormatting` | `boolean`                                                  | `false`     | Render the mask skeleton as the input's value when empty. See below.                                                                                                                                                                                                                      |
+| `validate`             | `(raw: string) => boolean`                                 | `undefined` | Pure predicate over the raw value; runs only once the mask is completely filled. See [Validation](#validation).                                                                                                                                                                           |
+| `onValidate`           | `(valid: boolean \| null) => void`                         | `undefined` | Fires when validity changes — `true`, `false`, or `null` (empty/incomplete). Silent on mount.                                                                                                                                                                                             |
 | `onInput`              | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on every keystroke (not during IME composition).                                                                                                                                                                                                                           |
 | `onChange`             | `(raw: string \| null, formatted: string \| null) => void` | `undefined` | Callback fired on blur/change.                                                                                                                                                                                                                                                            |
 | `onValueChange`        | `(values: NumberFormatValues, source: SourceInfo) => void` | `undefined` | Rich payload callback. See [`onValueChange`](#onvaluechange-rich-payload).                                                                                                                                                                                                                |
@@ -329,6 +331,7 @@ MaskPatterns.DATETIME_US // ##/##/#### ##:##
 
 ```typescript
 MaskPatterns.SSN // ###-##-####
+MaskPatterns.BRAZILIAN_CPF // ###.###.###-##
 MaskPatterns.ZIP_US // #####
 MaskPatterns.ZIP_US_PLUS4 // #####-####
 ```
@@ -421,6 +424,57 @@ MaskPatterns.MAC_ADDRESS // ##:##:##:##:##:##
 <!-- Accepts any combination of letters and numbers -->
 ```
 
+### Validation
+
+Attach a pure predicate to validate the raw value in real time:
+
+```svelte
+<script lang="ts">
+  import { PatternFormat, MaskPatterns } from 'svelte-number-format'
+  import { Validators } from 'svelte-number-format/validators'
+</script>
+
+<PatternFormat
+  format={MaskPatterns.BRAZILIAN_CPF}
+  validate={Validators.BRAZILIAN_CPF}
+  onValidate={(valid) => console.log(valid)}
+/>
+```
+
+Validity is **three-state**:
+
+| State         | When                                          | `data-valid` | `aria-invalid` |
+| ------------- | --------------------------------------------- | ------------ | -------------- |
+| Indeterminate | Empty, or the mask isn't completely filled    | absent       | absent         |
+| Valid         | Mask full and `validate(raw)` returns `true`  | `"true"`     | absent         |
+| Invalid       | Mask full and `validate(raw)` returns `false` | `"false"`    | `"true"`       |
+
+Style with the `data-valid` attribute — for example, only show errors once the user leaves the field:
+
+```css
+input[data-valid='false']:not(:focus) {
+  border-color: crimson;
+}
+```
+
+Built-in validators live in their own subpath, so they never load unless you import them:
+
+```typescript
+import { Validators } from 'svelte-number-format/validators'
+
+Validators.BRAZILIAN_CPF // CPF check digits — pairs with MaskPatterns.BRAZILIAN_CPF
+Validators.LUHN // Luhn checksum — pairs with CREDIT_CARD / CREDIT_CARD_AMEX
+Validators.US_PHONE // NANP rules — pairs with PHONE_US
+Validators.IPV4 // octets ≤ 255 — pairs with IPV4 (three digits per octet)
+```
+
+A few rules:
+
+- `validate` must be a **pure predicate** — mutating reactive state inside it throws. Reading external reactive state is fine and re-validates automatically when that state changes.
+- The validator only runs once the mask is completely filled, so variable-length masks (e.g. `PHONE_US_WITH_EXT`, whose extension is optional) never reach it.
+- A consumer-supplied `aria-invalid` always overrides the computed one.
+- `onValidate` reports changes only — it does not fire for the initial value on mount.
+
 ---
 
 ## Display-only components
@@ -479,7 +533,7 @@ interface SourceInfo {
 }
 ```
 
-> **Note:** `source` is currently always `'event'` — `NumericFormat` reports prop-driven updates with a synthetic event, and `PatternFormat` doesn't fire `onValueChange` for external `value` changes. The `'prop'` variant is reserved.
+> **Note:** `source` is `'prop'` (with `event: undefined`) when the change came through the bound `value` prop — an external update, a locale/options re-initialization, or a native `form.reset()` — and `'event'` for user interaction. Neither component emits on initial mount: `onValueChange` fires only on changes. One caveat: an external `value` change that arrives while the input is focused is ignored — the user's in-progress edit wins.
 
 ```svelte
 <script lang="ts">
@@ -557,6 +611,7 @@ On focus, the caret lands at the first fillable slot.
 Both input components forward all HTML attributes via spread, so `aria-invalid`, `aria-describedby`, `aria-label`, `aria-errormessage`, and `role` work out of the box. In addition:
 
 - `PatternFormat` sets `aria-placeholder` to the resolved placeholder — your `placeholder` prop if provided, otherwise the auto-generated mask string (e.g. `(___) ___-____`) — so screen readers announce the expected shape.
+- With a `validate` prop, `PatternFormat` sets `aria-invalid="true"` while the value is invalid (never when empty or incomplete); a consumer-supplied `aria-invalid` always wins. See [Validation](#validation).
 - `PatternFormat` auto-infers `inputmode` from the pattern (`numeric` / `tel` / `text`) to trigger the right mobile keyboard. Consumer-supplied `inputmode` wins.
 - `NumericFormat` gets its `inputmode` from the underlying formatter (`decimal` by default).
 
@@ -602,6 +657,9 @@ import { PatternFormat, PatternText } from 'svelte-number-format/pattern'
 
 // Just the patterns constant
 import { MaskPatterns } from 'svelte-number-format/patterns'
+
+// Just the built-in validators
+import { Validators } from 'svelte-number-format/validators'
 
 // Just display-only components
 import { NumericText, PatternText } from 'svelte-number-format/display'
@@ -975,7 +1033,7 @@ No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and d
 
 ### How big is it?
 
-`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
+`PatternFormat` (via `svelte-number-format/pattern`) is **4.6 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~8.1 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.8 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
 
 ### How is it different from react-number-format?
 
