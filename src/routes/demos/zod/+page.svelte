@@ -168,95 +168,22 @@ export const postForm = form(
 <pre class="state">{snippetRemote}</pre>
 
 <style>
-  .demo-title {
-    font-family: 'Fraunces', serif;
-    font-variation-settings:
-      'opsz' 144,
-      'wght' 500,
-      'SOFT' 40;
-    font-size: clamp(2rem, 4vw, 3rem);
-    font-style: italic;
-    letter-spacing: -0.02em;
-    margin: 0 0 0.5rem;
-  }
-  .demo-title span {
-    color: var(--ink-faint);
-    font-style: normal;
-    font-weight: 300;
-    font-size: 0.55em;
-    letter-spacing: 0;
-    margin-left: 0.3rem;
-    vertical-align: middle;
-  }
-  .demo-lede {
-    font-family: 'Newsreader', serif;
-    font-size: 1.05rem;
-    color: var(--ink-dim);
-    line-height: 1.5;
-    max-width: 58ch;
-    margin: 0 0 2rem;
-  }
-  .demo-lede code {
-    background: var(--paper-shade);
-    padding: 0.1em 0.4em;
-    font-size: 0.88em;
-    color: var(--signal);
-  }
-  .live-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-  label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-  }
-  :global(.field-input) {
-    width: 100%;
-    box-sizing: border-box;
-    background: transparent;
-    border: 0;
-    border-bottom: 1.5px solid var(--rule);
-    padding: 0.5rem 0;
-    font-family: 'Fraunces', serif;
-    font-feature-settings: 'tnum' 1;
-    font-size: 1.35rem;
-    color: var(--ink);
-    border-radius: 0;
-  }
-  :global(.field-input:focus) {
-    outline: none;
-    border-bottom-color: var(--signal);
-  }
-  .field-hint {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--ink-faint);
-    margin: 0;
-  }
   .compare {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
+    gap: 1.25rem;
     margin-bottom: 3rem;
   }
   .compare-col {
-    border: 1px solid var(--rule);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
     padding: 1rem 1.25rem;
   }
   .compare-head {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.1em;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin: 0 0 0.75rem;
   }
@@ -264,25 +191,29 @@ export const postForm = form(
     display: block;
     text-transform: none;
     letter-spacing: 0;
-    font-size: 0.72rem;
-    color: var(--ink-faint);
+    font-size: 11.5px;
+    color: var(--fg-faint);
     margin-top: 0.25rem;
+    font-family: var(--font-mono);
   }
   .verdict {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 13px;
     margin: 0 0 0.75rem;
   }
   .verdict.ok {
-    color: #2e7d32;
+    color: #2da44e;
+  }
+  :global(html[data-theme='dark']) .verdict.ok {
+    color: #3fb950;
   }
   .verdict.bad {
-    color: var(--signal);
+    color: var(--accent);
   }
   .issues {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: var(--signal);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--accent);
     margin: 0;
     padding-left: 1.1rem;
   }
@@ -290,37 +221,17 @@ export const postForm = form(
     margin-bottom: 0.35rem;
   }
   .section-head {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 1.5rem;
-    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 2.5rem 0 0.5rem;
   }
   .snippet-head {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.14em;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-dim);
+    color: var(--fg-muted);
     margin: 1.75rem 0 0.5rem;
-  }
-  .note {
-    font-family: 'Newsreader', serif;
-    font-size: 1rem;
-    color: var(--ink-dim);
-    margin: 0;
-    max-width: 58ch;
-  }
-  .note code {
-    background: var(--paper-shade);
-    padding: 0.1em 0.4em;
-    font-size: 0.88em;
-  }
-  .state {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    background: var(--paper-shade);
-    padding: 0.85rem 1rem;
-    margin: 0;
-    overflow-x: auto;
   }
 </style>
