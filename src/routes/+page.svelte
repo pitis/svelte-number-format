@@ -265,7 +265,7 @@
     {
       id: 'mac',
       name: 'MAC Address',
-      tag: 'MAC',
+      tag: 'MAC_ADDRESS',
       pattern: MaskPatterns.MAC_ADDRESS
     }
   ] as const
@@ -365,7 +365,7 @@
     {
       num: '05',
       title: '15+ pattern masks',
-      desc: 'Phone, credit card, SSN, dates, IPs, MAC, hex — drop in MaskPatterns.* and ship.',
+      desc: 'Phone, credit card, SSN, dates, IPs, MAC — drop in MaskPatterns.* and ship.',
       glyph: '###-##-####'
     },
     {
@@ -683,8 +683,8 @@
           </h1>
           <p class="hero-sub">
             A reactive input component library for Svelte 5 with caret-stable
-            formatting, two-way binding, and Intl-grade locale support. Two
-            components, fifteen masks, zero glue code.
+            formatting, two-way binding, and Intl-grade locale support. Four
+            components, 15+ masks, zero glue code.
           </p>
           <div class="hero-actions">
             <div class="install" role="group" aria-label="Install command">
@@ -1337,9 +1337,9 @@
             </li>
             <li>
               <a
-                href="https://github.com/pitis/svelte-number-format/discussions"
+                href="https://github.com/pitis/svelte-number-format/blob/main/MIGRATION.md"
                 target="_blank"
-                rel="noopener noreferrer">Discussions</a
+                rel="noopener noreferrer">Migration guide</a
               >
             </li>
             <li>
