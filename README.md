@@ -29,7 +29,7 @@ Inspired by [react-number-format](https://www.npmjs.com/package/react-number-for
 - `allowEmptyFormatting` to show the mask skeleton before typing
 - SSR-safe (no `navigator` at module eval)
 - A11y-ready — forwards `aria-*` attributes, auto-sets `aria-placeholder` and `inputmode`
-- Small — `PatternFormat` is 3.9 kB gzipped with zero runtime dependencies; `NumericFormat` is ~7.6 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
+- Small — `PatternFormat` is 4.2 kB gzipped with zero runtime dependencies; `NumericFormat` is ~8.1 kB gzipped including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input)
 
 🌍 **Internationalization**
 
@@ -479,7 +479,7 @@ interface SourceInfo {
 }
 ```
 
-> **Note:** `source` is currently always `'event'` — `NumericFormat` reports prop-driven updates with a synthetic event, and `PatternFormat` doesn't fire `onValueChange` for external `value` changes. The `'prop'` variant is reserved.
+> **Note:** `source` is `'prop'` (with `event: undefined`) when the change came through the bound `value` prop — an external update, a locale/options re-initialization, or a native `form.reset()` — and `'event'` for user interaction. Neither component emits on initial mount: `onValueChange` fires only on changes. One caveat: an external `value` change that arrives while the input is focused is ignored — the user's in-progress edit wins.
 
 ```svelte
 <script lang="ts">
@@ -975,7 +975,7 @@ No. The library is built on Svelte 5 runes (`$state`, `$props`, `$effect`) and d
 
 ### How big is it?
 
-`PatternFormat` (via `svelte-number-format/pattern`) is **3.9 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~7.6 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.2 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
+`PatternFormat` (via `svelte-number-format/pattern`) is **4.2 kB gzipped with zero runtime dependencies**. `NumericFormat` is **~8.1 kB gzipped** including its only dependency, [intl-number-input](https://www.npmjs.com/package/intl-number-input) (its own code is 2.8 kB). [Subpath imports](#subpath-imports) let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.
 
 ### How is it different from react-number-format?
 

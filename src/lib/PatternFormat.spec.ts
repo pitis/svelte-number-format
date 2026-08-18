@@ -939,4 +939,297 @@ describe('PatternFormat.svelte', () => {
       expect(new FormData(form).get('phone')).toBe('')
     })
   })
+
+  describe("onValueChange source (regression: SourceInfo.source 'prop')", () => {
+    type Call = {
+      values: {
+        floatValue: number | undefined
+        formattedValue: string
+        value: string
+      }
+      info: { event: Event | undefined; source: 'event' | 'prop' }
+    }
+
+    function collect() {
+      const calls: Call[] = []
+      const onValueChange = (values: Call['values'], info: Call['info']) =>
+        calls.push({ values, info })
+      return { calls, onValueChange }
+    }
+
+    function firePaste(input: HTMLInputElement, text: string) {
+      const event = new Event('paste', {
+        bubbles: true,
+        cancelable: true
+      })
+      Object.defineProperty(event, 'clipboardData', {
+        value: { getData: (type: string) => (type === 'text' ? text : '') }
+      })
+      return fireEvent(input, event)
+    }
+
+    it('does not emit on initial mount', async () => {
+      const { calls, onValueChange } = collect()
+      render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("emits exactly one 'prop' call for an external value update", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '1234567890',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({
+        format: MaskPatterns.PHONE_US,
+        value: '9998887777',
+        onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].info.event).toBeUndefined()
+      expect(calls[0].values.value).toBe('9998887777')
+      expect(calls[0].values.formattedValue).toBe('(999) 888-7777')
+    })
+
+    it("a keystroke emits exactly one 'event' call — no trailing 'prop'", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '1234567890'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].info.event).toBeInstanceOf(Event)
+    })
+
+    it("input followed by change emits two 'event' calls and nothing more", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '1234567890'
+      await fireEvent.input(input)
+      await fireEvent.change(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(2)
+      expect(calls.every((c) => c.info.source === 'event')).toBe(true)
+    })
+
+    it("paste emits exactly one 'event' call", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.focus()
+      await firePaste(input, '4155551234')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].values.value).toBe('4155551234')
+    })
+
+    it("composition emits exactly one 'event' call, on compositionend", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.compositionStart(input)
+      input.value = '415'
+      await fireEvent.input(input)
+      await fireEvent.compositionEnd(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+    })
+
+    it("backspace over a literal emits 'event' with the real KeyboardEvent and does not throw", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: { format: MaskPatterns.PHONE_US, onValueChange }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '123456'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.value).toBe('(123) 456')
+      calls.length = 0
+
+      // Cursor after the space literal: pattern[5] === ' '.
+      input.setSelectionRange(6, 6)
+      await fireEvent.keyDown(input, { key: 'Backspace' })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('event')
+      expect(calls[0].info.event).toBeInstanceOf(Event)
+      // The literal is re-applied by the mask; the raw digits are unchanged
+      // and the caret has stepped over the literal.
+      expect(calls[0].values.value).toBe('123456')
+      expect(input.value).toBe('(123) 456')
+    })
+
+    it('does not emit when rerendered with the same value', async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({
+        format: MaskPatterns.PHONE_US,
+        value: '4155551234',
+        onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it("normalizes external values through the mask in the 'prop' payload", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: { format: '###-###', value: '111222', onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ format: '###-###', value: 'abc123', onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].values.value).toBe('123')
+      expect(calls[0].values.formattedValue).toBe('123')
+    })
+
+    it("external clear carries the skeleton with allowEmptyFormatting, '' without", async () => {
+      const withSkeleton = collect()
+      const first = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          allowEmptyFormatting: true,
+          value: '4155551234',
+          onValueChange: withSkeleton.onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      withSkeleton.calls.length = 0
+
+      await first.rerender({
+        format: MaskPatterns.PHONE_US,
+        allowEmptyFormatting: true,
+        value: null,
+        onValueChange: withSkeleton.onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(withSkeleton.calls.length).toBe(1)
+      const skeletonCall = withSkeleton.calls[0]
+      expect(skeletonCall.info.source).toBe('prop')
+      expect(skeletonCall.values.value).toBe('')
+      expect(skeletonCall.values.floatValue).toBeUndefined()
+      expect(skeletonCall.values.formattedValue).toBe('(___) ___-____')
+      cleanup()
+
+      const plain = collect()
+      const second = render(PatternFormat, {
+        props: {
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange: plain.onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plain.calls.length = 0
+
+      await second.rerender({
+        format: MaskPatterns.PHONE_US,
+        value: null,
+        onValueChange: plain.onValueChange
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(plain.calls.length).toBe(1)
+      expect(plain.calls[0].values.formattedValue).toBe('')
+    })
+
+    it("form reset emits source 'prop' with an empty payload", async () => {
+      const { calls, onValueChange } = collect()
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'phone',
+          format: MaskPatterns.PHONE_US,
+          value: '4155551234',
+          onValueChange
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const last = calls[calls.length - 1]
+      expect(last).toBeDefined()
+      expect(last.info.source).toBe('prop')
+      expect(last.values.value).toBe('')
+    })
+
+    it("non-numeric patterns report floatValue undefined in 'prop' payloads", async () => {
+      const { calls, onValueChange } = collect()
+      const { rerender } = render(PatternFormat, {
+        props: { format: 'AAA-###', value: 'XYZ111', onValueChange }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      calls.length = 0
+
+      await rerender({ format: 'AAA-###', value: 'ABC123', onValueChange })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(1)
+      expect(calls[0].info.source).toBe('prop')
+      expect(calls[0].values.floatValue).toBeUndefined()
+      expect(calls[0].values.value).toBe('ABC123')
+    })
+  })
 })

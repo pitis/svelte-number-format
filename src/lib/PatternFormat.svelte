@@ -84,6 +84,14 @@
   let hiddenEl = $state<HTMLInputElement | null>(null)
   let isFocused = false
   let isComposing = false
+  // Last value we wrote ourselves ('' ≡ null); a plain `let`, not $state, so
+  // the effect below can tell parent-driven `value` updates from our own.
+  let lastSyncedValue: string | null = value || null
+
+  function setInternalValue(raw: string) {
+    value = raw || null
+    lastSyncedValue = raw || null
+  }
 
   // Native form reset restores the hidden input to its stale value attribute
   // (Svelte keeps the attribute — i.e. defaultValue — in step with the current
@@ -121,7 +129,7 @@
       customPatterns
     )
     target.setSelectionRange(nextCursor, nextCursor)
-    value = raw || null
+    setInternalValue(raw)
     return { raw, masked, nextCursor }
   }
 
@@ -166,7 +174,7 @@
     const target = e.target as HTMLInputElement
     const { raw, masked } = applyMask(target.value, pattern, customPatterns)
     target.value = masked
-    value = raw || null
+    setInternalValue(raw)
     onChange?.(raw || null, masked || null)
     emitValueChange(raw, masked, e)
   }
@@ -204,9 +212,10 @@
           const nextValue =
             target.value.substring(0, cursor - 1) +
             target.value.substring(cursor)
-          target.value = nextValue
-          target.setSelectionRange(cursor - 1, cursor - 1)
-          handleInput(new Event('input'))
+          // Commit with the real event: a synthetic one has target === null.
+          const { raw, masked } = commit(target, nextValue, cursor - 1)
+          onInput?.(raw || null, masked || null)
+          emitValueChange(raw, masked, e)
         }
       }
     }
@@ -245,6 +254,20 @@
       inputEl.value = formatValue(value)
     } else {
       inputEl.value = allowEmptyFormatting && pattern ? autoPlaceholder : ''
+    }
+  })
+
+  // A `value` we did not write ourselves came from the parent: report it with
+  // source 'prop' and no event.
+  $effect(() => {
+    const v = value || null
+    if (v === lastSyncedValue) return
+    lastSyncedValue = v
+    if (v == null) {
+      const empty = allowEmptyFormatting && pattern ? autoPlaceholder : ''
+      emitValueChange('', empty, undefined)
+    } else {
+      emitValueChange(submittedValue, formatValue(v), undefined)
     }
   })
 </script>

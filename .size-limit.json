@@ -8,7 +8,7 @@
       "dist/internal/values.js"
     ],
     "gzip": true,
-    "limit": "2.5 KB"
+    "limit": "3 KB"
   },
   {
     "name": "intl-number-input dependency (gzipped)",
@@ -26,7 +26,7 @@
       "dist/internal/values.js"
     ],
     "gzip": true,
-    "limit": "4 KB"
+    "limit": "4.3 KB"
   },
   {
     "name": "NumericText source (gzipped)",

@@ -34,6 +34,12 @@ export const MaskPatterns = {
   // Other
   IPV4: '###.###.###.###',
   MAC_ADDRESS: '##:##:##:##:##:##',
+  /**
+   * @deprecated Broken — the leading `#` is the digit token, so this mask
+   * cannot accept a hex color, and a literal `#` is not expressible in a
+   * pattern. Use `format="HHHHHH"` with
+   * `customPatterns={{ H: /[0-9a-fA-F]/ }}` instead. Will be removed in 3.0.
+   */
   HEX_COLOR: '#******'
 } as const
 

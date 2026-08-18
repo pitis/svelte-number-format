@@ -52,7 +52,7 @@
     },
     {
       q: 'How big is it?',
-      a: 'PatternFormat is 3.9 kB gzipped with zero runtime dependencies; NumericFormat is ~7.6 kB gzipped including its only dependency, intl-number-input. Subpath imports let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.'
+      a: 'PatternFormat is 4.2 kB gzipped with zero runtime dependencies; NumericFormat is ~8.1 kB gzipped including its only dependency, intl-number-input. Subpath imports let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.'
     },
     {
       q: 'How is it different from react-number-format?',
@@ -885,7 +885,7 @@
       <div class="stats">
         <div class="stats-row">
           <div class="stat">
-            <div class="num">~7.6 kB</div>
+            <div class="num">~8.1 kB</div>
             <div class="lbl">Bundle size · gzipped</div>
           </div>
           <div class="stat">
@@ -1221,7 +1221,7 @@
           <div class="section-kicker">Install</div>
           <h3>Add it to your Svelte 5 project.</h3>
           <p>
-            MIT licensed. ~7.6 kB gzipped. Zero config.
+            MIT licensed. ~8.1 kB gzipped. Zero config.
             <a
               class="link"
               href="https://github.com/pitis/svelte-number-format"
