@@ -48,15 +48,14 @@
             options={{
               formatStyle: NumberFormatStyle.Currency,
               currency: 'USD',
-              precision: 2,
-              valueRange: { min: 0, max: 1_000_000 }
+              precision: 2
             }}
             class="field-input"
           />
           <FieldErrors class="field-error" />
           <p class="field-hint">
-            Demo caps this field at $1,000,000 via <code>valueRange</code>:
-            larger amounts clamp to the max on blur.
+            Try an amount over $1,000,000: the Zod schema rejects it with a
+            validation error.
           </p>
         </div>
       {/snippet}

@@ -48,8 +48,7 @@
       options={{
         formatStyle: NumberFormatStyle.Currency,
         currency: 'USD',
-        precision: 2,
-        valueRange: { min: 0, max: 1_000_000 }
+        precision: 2
       }}
       aria-invalid={$errors.amount ? 'true' : undefined}
       class="field-input"
@@ -58,8 +57,8 @@
       <p class="field-error">{$errors.amount}</p>
     {/if}
     <p class="field-hint">
-      Demo caps this field at $1,000,000 via <code>valueRange</code>: larger
-      amounts clamp to the max on blur.
+      Try an amount over $1,000,000: the Zod schema rejects it with a validation
+      error.
     </p>
   </div>
 
