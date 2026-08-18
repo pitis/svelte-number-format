@@ -2,6 +2,7 @@
   import {
     applyMask,
     calculateCursorPosition,
+    countTokens,
     firstTokenIndex,
     generatePlaceholder,
     isBuiltinToken,
@@ -21,6 +22,10 @@
     placeholder?: string
     customPatterns?: CustomPatterns
     allowEmptyFormatting?: boolean
+    /** Pure predicate over the raw (unmasked) value; runs only when the mask is completely filled. */
+    validate?: (raw: string) => boolean
+    /** Fires when validity changes (not on mount): true, false, or null when empty/incomplete. */
+    onValidate?: (valid: boolean | null) => void
     onInput?: (value: string | null, formatted: string | null) => void
     onChange?: (value: string | null, formatted: string | null) => void
     onValueChange?: OnValueChange
@@ -37,6 +42,8 @@
     placeholder = '',
     customPatterns,
     allowEmptyFormatting = false,
+    validate,
+    onValidate,
     onInput = () => {},
     onChange = () => {},
     onValueChange,
@@ -79,6 +86,16 @@
         ? applyMask(value, pattern, customPatterns).raw
         : value
   )
+  // Three-state validity: null while empty or incomplete (unfinished isn't
+  // wrong); every value path lands in `value`, so one derived covers all.
+  const validity = $derived.by(() => {
+    if (!validate) return null
+    const raw = submittedValue
+    if (!raw) return null
+    if (pattern && raw.length < countTokens(pattern, customPatterns))
+      return null
+    return validate(raw)
+  })
 
   let inputEl: HTMLInputElement | null = null
   let hiddenEl = $state<HTMLInputElement | null>(null)
@@ -270,6 +287,15 @@
       emitValueChange(submittedValue, formatValue(v), undefined)
     }
   })
+
+  // Deliberate initial-value capture: silent on mount, reports changes only.
+  // svelte-ignore state_referenced_locally
+  let lastValidity: boolean | null = validity
+  $effect(() => {
+    if (validity === lastValidity) return
+    lastValidity = validity
+    onValidate?.(validity)
+  })
 </script>
 
 <input
@@ -285,6 +311,8 @@
   placeholder={resolvedPlaceholder}
   aria-placeholder={resolvedPlaceholder || undefined}
   inputmode={inferredInputMode}
+  data-valid={validity == null ? undefined : validity}
+  aria-invalid={validity === false ? true : undefined}
   {form}
   {disabled}
   {...restProps}

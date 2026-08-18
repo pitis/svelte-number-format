@@ -50,9 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package description now leads with "currency, number and masked input
   components" and names all four components; added the `currency-input`
   keyword. The GitHub repo description was updated to match.
-- The new emission logic grows the shipped source: published sizes updated
-  everywhere (PatternFormat 4.2 kB gzipped, NumericFormat ~8.1 kB including
-  its dependency) and the size-limit budgets re-pinned to match.
+- The new emission and validation logic grows the shipped source: published
+  sizes updated everywhere (PatternFormat 4.6 kB gzipped, NumericFormat
+  ~8.1 kB including its dependency) and the size-limit budgets re-pinned to
+  match.
 
 ### Deprecated
 
@@ -63,6 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PatternFormat` real-time validation: a `validate` predicate prop and an
+  `onValidate` callback with three-state validity — indeterminate while the
+  mask is empty or incomplete, then valid/invalid reported reactively via
+  `data-valid` and `aria-invalid` (consumer-supplied `aria-invalid` wins;
+  attributes are SSR-prerendered; `onValidate` is silent on mount). Idea and
+  initial implementation by @Zinnavoy in
+  [#12](https://github.com/pitis/svelte-number-format/pull/12).
+- New `svelte-number-format/validators` subpath: a `Validators` registry with
+  `BRAZILIAN_CPF`, `LUHN`, `US_PHONE`, and `IPV4`, plus the `Validator` type.
+  Also new `MaskPatterns.BRAZILIAN_CPF` (`###.###.###-##`).
 - README: FAQ section (currency how-to, Svelte 4, bundle size, comparisons
   with react-number-format and svelte-currency-input, form libraries, SSR,
   native forms) plus measured gzipped sizes in Features.

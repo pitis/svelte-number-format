@@ -136,6 +136,7 @@ spans. They share an internal toolkit under `src/lib/internal/`.
 - Cursor-aware mask engine in `src/lib/internal/cursor.ts`
 - Tests in `src/lib/PatternFormat.spec.ts`
 - Built-in patterns in `src/lib/maskPatterns.ts`
+- Built-in validators in `src/lib/inputValidators.ts`
 
 ### NumericText
 
@@ -167,6 +168,7 @@ The package ships with subpath exports for finer-grained tree-shaking:
 - `svelte-number-format/numeric` — `NumericFormat` + `NumericText`
 - `svelte-number-format/pattern` — `PatternFormat` + `PatternText`
 - `svelte-number-format/patterns` — `MaskPatterns` constants only
+- `svelte-number-format/validators` — `Validators` registry only
 - `svelte-number-format/display` — `NumericText` + `PatternText` only
 
 ## Adding New Features

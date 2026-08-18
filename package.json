@@ -114,6 +114,12 @@
       "import": "./dist/patterns.js",
       "default": "./dist/patterns.js"
     },
+    "./validators": {
+      "types": "./dist/validators.d.ts",
+      "svelte": "./dist/validators.js",
+      "import": "./dist/validators.js",
+      "default": "./dist/validators.js"
+    },
     "./display": {
       "types": "./dist/display.d.ts",
       "svelte": "./dist/display.js",

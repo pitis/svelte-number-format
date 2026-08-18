@@ -1232,4 +1232,314 @@ describe('PatternFormat.svelte', () => {
       expect(calls[0].values.value).toBe('ABC123')
     })
   })
+
+  describe('Validation (validate / onValidate)', () => {
+    const CPF_MASK = '###.###.###-##'
+    const isCpf = (raw: string) => raw === '14550200286'
+
+    function attrs(input: HTMLInputElement) {
+      return {
+        valid: input.getAttribute('data-valid'),
+        ariaInvalid: input.getAttribute('aria-invalid')
+      }
+    }
+
+    it('sets no validity attributes when validate is absent', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, value: '14550200286' }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('is indeterminate while empty', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('is indeterminate while the mask is only partially filled', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '145502002'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('reports data-valid="true" without aria-invalid for a complete valid value', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: 'true', ariaInvalid: null })
+    })
+
+    it('reports data-valid="false" and aria-invalid for a complete invalid value', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200287'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: 'false', ariaInvalid: 'true' })
+    })
+
+    it('reverts to indeterminate when edited back below completeness', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      input.value = '145.502.002-8'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('validates pasted pre-formatted input in one shot', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      input.focus()
+
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          getData: (t: string) => (t === 'text' ? '145.502.002-86' : '')
+        }
+      })
+      await fireEvent(input, event)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input).valid).toBe('true')
+    })
+
+    it('consumer-supplied aria-invalid wins over the computed one', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          'aria-invalid': 'true'
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.getAttribute('data-valid')).toBe('true')
+      expect(input.getAttribute('aria-invalid')).toBe('true')
+    })
+
+    it('onValidate is silent on mount for both prefilled valid and invalid values', async () => {
+      const calls: Array<boolean | null> = []
+      render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200287',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls.length).toBe(0)
+    })
+
+    it('fires onValidate(true) once when typing reaches a valid value, without repeats', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await fireEvent.change(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([true])
+    })
+
+    it('fires onValidate(false) when a valid value is edited into an invalid one', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      input.value = '145.502.002-87'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([false])
+    })
+
+    it('fires onValidate(null) when a complete value is cleared', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      input.value = ''
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(calls).toEqual([null])
+    })
+
+    it('external value changes drive validity and fire onValidate', async () => {
+      const calls: Array<boolean | null> = []
+      const onValidate = (v: boolean | null) => calls.push(v)
+      const { container, rerender } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      await rerender({
+        format: CPF_MASK,
+        value: '14550200287',
+        validate: isCpf,
+        onValidate
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(input.getAttribute('data-valid')).toBe('false')
+      expect(calls).toEqual([false])
+    })
+
+    it('form.reset() clears validity to indeterminate and fires onValidate(null)', async () => {
+      const calls: Array<boolean | null> = []
+      const { container } = render(PatternFormat, {
+        props: {
+          name: 'cpf',
+          format: CPF_MASK,
+          value: '14550200286',
+          validate: isCpf,
+          onValidate: (v: boolean | null) => calls.push(v)
+        }
+      })
+      const input = container.querySelector(
+        'input:not([type="hidden"])'
+      ) as HTMLInputElement
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      const form = document.createElement('form')
+      form.append(...Array.from(container.childNodes))
+      container.appendChild(form)
+      form.reset()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+      expect(calls).toEqual([null])
+    })
+
+    it('counts custom pattern tokens toward completeness', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: 'HH-HH',
+          customPatterns: { H: /[0-9a-f]/ },
+          validate: (raw: string) => raw === 'abcd'
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      input.value = 'abc'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe(null)
+
+      input.value = 'ab-cd'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe('true')
+    })
+
+    it('stays indeterminate while allowEmptyFormatting shows the skeleton', async () => {
+      const { container } = render(PatternFormat, {
+        props: {
+          format: CPF_MASK,
+          allowEmptyFormatting: true,
+          validate: isCpf
+        }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+      await fireEvent.focus(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(attrs(input)).toEqual({ valid: null, ariaInvalid: null })
+    })
+
+    it('does not update validity during IME composition', async () => {
+      const { container } = render(PatternFormat, {
+        props: { format: CPF_MASK, validate: isCpf }
+      })
+      const input = container.querySelector('input') as HTMLInputElement
+
+      await fireEvent.compositionStart(input)
+      input.value = '14550200286'
+      await fireEvent.input(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe(null)
+
+      await fireEvent.compositionEnd(input)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(input.getAttribute('data-valid')).toBe('true')
+    })
+  })
 })

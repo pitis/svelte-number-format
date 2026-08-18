@@ -191,6 +191,17 @@ export function generatePlaceholder(
   return out
 }
 
+export function countTokens(
+  pattern: string,
+  customPatterns?: CustomPatterns
+): number {
+  let count = 0
+  for (const ch of pattern) {
+    if (isPatternToken(ch, customPatterns)) count++
+  }
+  return count
+}
+
 export function skeletonFromPattern(
   pattern: string,
   maskChar: string,

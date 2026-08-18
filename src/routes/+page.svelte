@@ -6,7 +6,8 @@
     PatternFormat,
     NumericText,
     NumberFormatStyle,
-    MaskPatterns
+    MaskPatterns,
+    Validators
   } from '../lib/index.js'
   import pkg from '../../package.json' with { type: 'json' }
   import SeoHead from './SeoHead.svelte'
@@ -52,7 +53,7 @@
     },
     {
       q: 'How big is it?',
-      a: 'PatternFormat is 4.2 kB gzipped with zero runtime dependencies; NumericFormat is ~8.1 kB gzipped including its only dependency, intl-number-input. Subpath imports let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.'
+      a: 'PatternFormat is 4.6 kB gzipped with zero runtime dependencies; NumericFormat is ~8.1 kB gzipped including its only dependency, intl-number-input. Subpath imports let you load only what you use. Numbers are gzipped package source, pinned by size-limit budgets in CI.'
     },
     {
       q: 'How is it different from react-number-format?',
@@ -241,7 +242,13 @@
   let showDecimal = $state<number | null>(1234567.89)
 
   // ── Pattern showcase ──────────────────────────────────────────────────────
-  const patternDemos = [
+  const patternDemos: Array<{
+    id: string
+    name: string
+    tag: string
+    pattern: string
+    validate?: (raw: string) => boolean
+  }> = [
     {
       id: 'phone',
       name: 'Phone (US)',
@@ -261,6 +268,13 @@
       tag: 'DATE_US',
       pattern: MaskPatterns.DATE_US
     },
+    {
+      id: 'cpf',
+      name: 'CPF · validated',
+      tag: 'BRAZILIAN_CPF',
+      pattern: MaskPatterns.BRAZILIAN_CPF,
+      validate: Validators.BRAZILIAN_CPF
+    },
     { id: 'ip', name: 'IPv4', tag: 'IPV4', pattern: MaskPatterns.IPV4 },
     {
       id: 'mac',
@@ -268,13 +282,14 @@
       tag: 'MAC_ADDRESS',
       pattern: MaskPatterns.MAC_ADDRESS
     }
-  ] as const
+  ]
 
   const patternValues = $state<Record<string, string | null>>({
     phone: '4155550199',
     card: '4242424242424242',
     ssn: '123456789',
     date: '12252024',
+    cpf: '14550200286',
     ip: '192168011',
     mac: 'a4c138ff0211'
   })
@@ -1061,6 +1076,7 @@
                 bind:value={patternValues[d.id]}
                 format={d.pattern}
                 placeholder={d.pattern}
+                validate={d.validate}
               />
             </div>
             <div class="showcard-foot">
@@ -2189,6 +2205,13 @@
   :global(.show-input:focus) {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  /* Validation states (CPF card) — the library sets data-valid */
+  :global(.show-input[data-valid='true']) {
+    border-color: #22c55e;
+  }
+  :global(.show-input[data-valid='false']) {
+    border-color: #ef4444;
   }
 
   /* Locale gallery */

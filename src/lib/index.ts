@@ -10,6 +10,8 @@ export { default as PatternText } from './PatternText.svelte'
 export { NumberFormatStyle } from 'intl-number-input'
 export { MaskPatterns } from './maskPatterns.js'
 export type { MaskPattern } from './maskPatterns.js'
+export { Validators } from './inputValidators.js'
+export type { Validator } from './inputValidators.js'
 export type { NumericTextOptions } from './NumericText.svelte'
 export type {
   NumberFormatValues,

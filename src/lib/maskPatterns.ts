@@ -28,6 +28,7 @@ export const MaskPatterns = {
 
   // Identification
   SSN: '###-##-####',
+  BRAZILIAN_CPF: '###.###.###-##',
   ZIP_US: '#####',
   ZIP_US_PLUS4: '#####-####',
 
